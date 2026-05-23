@@ -1,0 +1,85 @@
+{
+  "episodes": [
+    {
+      "id": "foundation",
+      "channel": "00",
+      "name": "Foundation",
+      "description": "Config, types, Supabase setup, DB migrations, circuit breaker & analytics engines",
+      "status": "complete",
+      "agent": "main"
+    },
+    {
+      "id": "auth",
+      "channel": "01",
+      "name": "Auth & Onboarding",
+      "description": "Login, signup, email/password auth via Supabase, onboarding flow",
+      "status": "building",
+      "agent": "agent-auth"
+    },
+    {
+      "id": "dashboard",
+      "channel": "02",
+      "name": "Dashboard",
+      "description": "Week P&L stats, account cards, DLL bar, recent sessions, nav layout",
+      "status": "building",
+      "agent": "agent-dashboard"
+    },
+    {
+      "id": "session",
+      "channel": "03",
+      "name": "Live Session",
+      "description": "Pre-session gate, live P&L gauge, trade logging, end session + debrief",
+      "status": "building",
+      "agent": "agent-session"
+    },
+    {
+      "id": "circuit-breaker",
+      "channel": "04",
+      "name": "Circuit Breaker",
+      "description": "50% modal (unskippable), 80% full-screen 15-min lockout, PnL gauge component",
+      "status": "building",
+      "agent": "agent-session"
+    },
+    {
+      "id": "analytics",
+      "channel": "05",
+      "name": "Analytics",
+      "description": "Equity curve, win rate by setup/session/emotion/confluence, profit factor",
+      "status": "building",
+      "agent": "agent-analytics"
+    },
+    {
+      "id": "settings",
+      "channel": "06",
+      "name": "Settings",
+      "description": "Timezone, setup types, Tradovate credentials, account history page",
+      "status": "building",
+      "agent": "agent-settings"
+    },
+    {
+      "id": "billing",
+      "channel": "07",
+      "name": "Stripe Billing",
+      "description": "$19 AUD/mo checkout, billing portal, webhook handler, paywall page",
+      "status": "building",
+      "agent": "agent-billing"
+    },
+    {
+      "id": "api",
+      "channel": "08",
+      "name": "API Routes",
+      "description": "Trader, sessions, trades, circuit-breaker, billing, Tradovate endpoints",
+      "status": "building",
+      "agent": "agent-api"
+    },
+    {
+      "id": "extension",
+      "channel": "09",
+      "name": "Chrome Extension",
+      "description": "Tradovate DOM scraper → CustomEvent → session screen P&L feed",
+      "status": "building",
+      "agent": "agent-extension"
+    }
+  ],
+  "started_at": "2026-05-23T09:30:00Z"
+}

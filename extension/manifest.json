@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "PropGuard — Tradovate P&L",
+  "version": "1.0.0",
+  "description": "Automatically syncs your Tradovate P&L to PropGuard for real-time circuit breaker protection.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://trader.tradovate.com/*",
+    "https://app.tradovate.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://trader.tradovate.com/*", "https://app.tradovate.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "PropGuard P&L Sync"
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}

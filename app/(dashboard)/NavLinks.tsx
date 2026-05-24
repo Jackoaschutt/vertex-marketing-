@@ -58,13 +58,13 @@ export default function NavLinks() {
           <li key={href}>
             <Link
               href={href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+              className={`flex items-center gap-3 py-2.5 rounded-r-lg text-sm transition-all ${
                 isActive
-                  ? 'bg-teal-950/60 text-teal-300 border border-teal-800/40'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/60 border border-transparent'
+                  ? 'border-l-2 border-teal-400 bg-white/5 text-white pl-[10px]'
+                  : 'text-slate-400 hover:text-white hover:bg-white/[0.04] pl-3 border-l-2 border-transparent'
               }`}
             >
-              <span className={isActive ? 'text-teal-400' : 'text-zinc-500'}>
+              <span className={isActive ? 'text-teal-400' : 'text-slate-500'}>
                 {icon}
               </span>
               <span className="font-medium">{label}</span>

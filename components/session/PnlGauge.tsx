@@ -104,7 +104,7 @@ export default function PnlGauge({ pnl, dllAmount }: Props) {
 
       {/* DLL Progress Bar */}
       <div className="w-full px-1">
-        <div className="relative h-3 w-full bg-zinc-800 rounded-full overflow-visible">
+        <div className="relative h-3 w-full bg-slate-800 rounded-full overflow-visible">
           {/* Fill */}
           <div
             className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ${fillColor}`}
@@ -122,7 +122,7 @@ export default function PnlGauge({ pnl, dllAmount }: Props) {
           />
         </div>
         {/* Labels */}
-        <div className="relative mt-1 text-[10px] text-zinc-500 select-none" style={{ height: '14px' }}>
+        <div className="relative mt-1 text-[10px] text-slate-500 select-none" style={{ height: '14px' }}>
           <span className="absolute left-0">0</span>
           <span className="absolute -translate-x-1/2" style={{ left: '50%' }}>
             DLL 50%
@@ -136,14 +136,14 @@ export default function PnlGauge({ pnl, dllAmount }: Props) {
 
       {/* Loss vs DLL text */}
       {pnl < 0 && (
-        <p className="text-xs text-zinc-400 text-center">
+        <p className="text-xs text-slate-400 text-center">
           Loss:{' '}
           <span className="text-red-400 font-mono font-semibold">
             ${Math.abs(pnl).toFixed(2)}
           </span>{' '}
           / DLL:{' '}
-          <span className="text-zinc-300 font-mono">${dllAmount.toFixed(2)}</span>{' '}
-          <span className="text-zinc-500">({absPct.toFixed(1)}%)</span>
+          <span className="text-slate-300 font-mono">${dllAmount.toFixed(2)}</span>{' '}
+          <span className="text-slate-500">({absPct.toFixed(1)}%)</span>
         </p>
       )}
     </div>

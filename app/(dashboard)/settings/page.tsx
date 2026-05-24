@@ -39,7 +39,7 @@ function formatDate(iso: string) {
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-4">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-4">
       {children}
     </div>
   )
@@ -58,7 +58,7 @@ function SaveButton({
     <button
       onClick={onClick}
       disabled={loading}
-      className="bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+      className="bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
     >
       {loading ? 'Saving…' : label}
     </button>
@@ -109,11 +109,11 @@ function GeneralTab({ trader }: { trader: Trader }) {
       <h2 className="text-base font-semibold text-white mb-4">General Settings</h2>
       <div className="space-y-4 max-w-sm">
         <div>
-          <label className="block text-sm text-zinc-400 mb-1.5">Timezone</label>
+          <label className="block text-sm text-slate-400 mb-1.5">Timezone</label>
           <select
             value={timezone}
             onChange={(e) => setTimezone(e.target.value)}
-            className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white w-full focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white w-full focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30"
           >
             {TIMEZONES.map((tz) => (
               <option key={tz} value={tz}>
@@ -193,12 +193,12 @@ function SetupTypesTab({
 
       <ul className="space-y-2 mb-4">
         {setupTypes.length === 0 && (
-          <li className="text-sm text-zinc-500">No setup types yet.</li>
+          <li className="text-sm text-slate-500">No setup types yet.</li>
         )}
         {setupTypes.map((st) => (
           <li
             key={st.id}
-            className="flex items-center justify-between bg-zinc-800 border border-zinc-700/50 rounded-lg px-3 py-2"
+            className="flex items-center justify-between bg-slate-800 border border-slate-700/50 rounded-lg px-3 py-2"
           >
             <span className="text-sm text-white">{st.name}</span>
             <button
@@ -218,12 +218,12 @@ function SetupTypesTab({
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
           placeholder="e.g. ICT Order Block, FVG, VWAP Pullback"
-          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white w-full focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm placeholder-zinc-600"
+          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white w-full focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30 text-sm placeholder-slate-500"
         />
         <button
           onClick={handleAdd}
           disabled={adding || !newName.trim()}
-          className="bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
+          className="bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap"
         >
           {adding ? 'Adding…' : 'Add'}
         </button>
@@ -269,33 +269,33 @@ function TradingTab({ trader }: { trader: Trader }) {
     <div className="space-y-4">
       <SectionCard>
         <h2 className="text-base font-semibold text-white mb-1">Tradovate Integration</h2>
-        <p className="text-sm text-zinc-500 mb-4">Connect your Tradovate account for automatic P&amp;L syncing.</p>
+        <p className="text-sm text-slate-500 mb-4">Connect your Tradovate account for automatic P&amp;L syncing.</p>
 
         <div className="space-y-4 max-w-sm">
           <div>
-            <label className="block text-sm text-zinc-400 mb-1.5">Tradovate Username</label>
+            <label className="block text-sm text-slate-400 mb-1.5">Tradovate Username</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="your@email.com"
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white w-full focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm placeholder-zinc-600"
+              className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white w-full focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30 text-sm placeholder-slate-500"
             />
           </div>
           <div>
-            <label className="block text-sm text-zinc-400 mb-1.5">Tradovate Password</label>
+            <label className="block text-sm text-slate-400 mb-1.5">Tradovate Password</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white w-full focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm placeholder-zinc-600 pr-16"
+                className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white w-full focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30 text-sm placeholder-slate-500 pr-16"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute inset-y-0 right-3 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                className="absolute inset-y-0 right-3 text-xs text-slate-400 hover:text-white transition-colors"
               >
                 {showPassword ? 'Hide' : 'Show'}
               </button>
@@ -307,7 +307,7 @@ function TradingTab({ trader }: { trader: Trader }) {
           {error && <ErrorMessage message={error} />}
         </div>
 
-        <div className="bg-zinc-800 border border-zinc-700/50 rounded-lg p-3 text-sm text-zinc-400 mt-5 max-w-sm">
+        <div className="bg-slate-800 border border-slate-700/50 rounded-lg p-3 text-sm text-slate-400 mt-5 max-w-sm">
           Tradovate integration automatically syncs your P&amp;L during live sessions. Your credentials
           are stored securely and only used to fetch P&amp;L data.
         </div>
@@ -315,7 +315,7 @@ function TradingTab({ trader }: { trader: Trader }) {
 
       <SectionCard>
         <h2 className="text-base font-semibold text-white mb-1">Chrome Extension</h2>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-slate-400">
           Install the PropGuard Chrome extension for automatic P&amp;L syncing from Tradovate web.
         </p>
         <a
@@ -376,7 +376,7 @@ function BillingTab() {
   if (loading) {
     return (
       <SectionCard>
-        <p className="text-sm text-zinc-500">Loading billing status…</p>
+        <p className="text-sm text-slate-500">Loading billing status…</p>
       </SectionCard>
     )
   }
@@ -406,7 +406,7 @@ function BillingTab() {
           <button
             onClick={handleCheckout}
             disabled={actionLoading}
-            className="bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+            className="bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
           >
             {actionLoading ? 'Redirecting…' : 'Upgrade to Pro'}
           </button>
@@ -421,7 +421,7 @@ function BillingTab() {
           <button
             onClick={handlePortal}
             disabled={actionLoading}
-            className="bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+            className="bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
           >
             {actionLoading ? 'Redirecting…' : 'Manage Billing'}
           </button>
@@ -436,7 +436,7 @@ function BillingTab() {
           <button
             onClick={handlePortal}
             disabled={actionLoading}
-            className="bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+            className="bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
           >
             {actionLoading ? 'Redirecting…' : 'Update Payment'}
           </button>
@@ -445,13 +445,13 @@ function BillingTab() {
 
       {status === 'canceled' && (
         <div className="space-y-4">
-          <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 text-sm text-zinc-400">
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 text-sm text-slate-400">
             Subscription canceled.
           </div>
           <button
             onClick={handleCheckout}
             disabled={actionLoading}
-            className="bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+            className="bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
           >
             {actionLoading ? 'Redirecting…' : 'Resubscribe'}
           </button>
@@ -459,7 +459,7 @@ function BillingTab() {
       )}
 
       {!status && (
-        <p className="text-sm text-zinc-500">No billing information available.</p>
+        <p className="text-sm text-slate-500">No billing information available.</p>
       )}
     </SectionCard>
   )
@@ -511,7 +511,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="p-8">
-        <p className="text-zinc-500 text-sm">Loading settings…</p>
+        <p className="text-slate-500 text-sm">Loading settings…</p>
       </div>
     )
   }
@@ -528,10 +528,10 @@ export default function SettingsPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="text-zinc-500 text-sm mt-1">Manage your account preferences and integrations.</p>
+        <p className="text-slate-500 text-sm mt-1">Manage your account preferences and integrations.</p>
       </div>
 
-      <div className="border-b border-zinc-800 mb-6">
+      <div className="border-b border-slate-800 mb-6">
         <nav className="flex gap-0">
           {TABS.map(({ id, label }) => (
             <button
@@ -540,7 +540,7 @@ export default function SettingsPage() {
               className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
                 activeTab === id
                   ? 'text-teal-400 border-teal-400'
-                  : 'text-zinc-400 border-transparent hover:text-zinc-200'
+                  : 'text-slate-400 border-transparent hover:text-white'
               }`}
             >
               {label}

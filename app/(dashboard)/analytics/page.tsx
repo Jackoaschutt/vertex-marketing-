@@ -30,11 +30,11 @@ function MetricCard({
   valueClass?: string
 }) {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-1">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-1">
       <span className={`text-2xl font-bold font-mono tabular-nums ${valueClass}`}>
         {value}
       </span>
-      <span className="text-zinc-400 text-sm">{label}</span>
+      <span className="text-slate-400 text-sm">{label}</span>
     </div>
   )
 }
@@ -44,7 +44,7 @@ function MetricCard({
 function EquityCurve({ points }: { points: EquityPoint[] }) {
   if (points.length === 0) {
     return (
-      <p className="text-zinc-500 text-sm py-12 text-center">
+      <p className="text-slate-500 text-sm py-12 text-center">
         No completed sessions yet
       </p>
     )
@@ -143,7 +143,7 @@ function EquityCurve({ points }: { points: EquityPoint[] }) {
       </svg>
 
       {points.length > 1 && (
-        <div className="flex justify-between text-xs text-zinc-500 font-mono mt-1 px-2">
+        <div className="flex justify-between text-xs text-slate-500 font-mono mt-1 px-2">
           <span>{points[0].date}</span>
           {points.length > 2 && (
             <span>{points[Math.floor(points.length / 2)].date}</span>
@@ -171,7 +171,7 @@ function WinRateTable({
   emptyMessage?: string
 }) {
   if (rows.length === 0) {
-    return <p className="text-zinc-500 text-sm py-6 text-center">{emptyMessage}</p>
+    return <p className="text-slate-500 text-sm py-6 text-center">{emptyMessage}</p>
   }
 
   const sorted = [...rows].sort((a, b) => b.win_rate - a.win_rate)
@@ -180,7 +180,7 @@ function WinRateTable({
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-zinc-400 text-left border-b border-zinc-800">
+          <tr className="text-slate-400 text-left border-b border-zinc-800">
             <th className="pb-2 pr-4 font-medium">Name</th>
             <th className="pb-2 pr-4 font-medium tabular-nums text-right">Trades</th>
             <th className="pb-2 pr-4 font-medium text-right">Win Rate</th>
@@ -192,12 +192,12 @@ function WinRateTable({
           {sorted.map((row) => (
             <tr
               key={row.dimension}
-              className="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/40 transition-colors"
+              className="border-b border-zinc-800 last:border-0 hover:bg-slate-800/40 transition-colors"
             >
               <td className="py-2.5 pr-4 text-zinc-200 font-medium capitalize">
                 {row.dimension}
               </td>
-              <td className="py-2.5 pr-4 text-zinc-300 font-mono tabular-nums text-right">
+              <td className="py-2.5 pr-4 text-slate-300 font-mono tabular-nums text-right">
                 {row.total}
               </td>
               <td className={`py-2.5 pr-4 font-mono tabular-nums font-semibold text-right ${winRateColor(row.win_rate)}`}>
@@ -207,7 +207,7 @@ function WinRateTable({
                 {formatPnl(row.avg_pnl)}
               </td>
               <td className="py-2.5">
-                <div className="w-28 h-2 rounded-full bg-zinc-800 overflow-hidden">
+                <div className="w-28 h-2 rounded-full bg-slate-800 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
                       row.win_rate >= 0.6
@@ -232,7 +232,7 @@ function WinRateTable({
 
 function ConfluenceChart({ rows }: { rows: WinRateByDimension[] }) {
   if (rows.length === 0) {
-    return <p className="text-zinc-500 text-sm py-6 text-center">No trade data yet</p>
+    return <p className="text-slate-500 text-sm py-6 text-center">No trade data yet</p>
   }
 
   const sorted = [...rows].sort((a, b) => Number(a.dimension) - Number(b.dimension))
@@ -247,8 +247,8 @@ function ConfluenceChart({ rows }: { rows: WinRateByDimension[] }) {
             : `${row.dimension} confluence${row.dimension === '1' ? '' : 's'}`
         return (
           <div key={row.dimension} className="flex items-center gap-3">
-            <span className="w-28 text-sm text-zinc-400 flex-shrink-0">{label}</span>
-            <div className="flex-1 h-7 bg-zinc-800 rounded-lg overflow-hidden">
+            <span className="w-28 text-sm text-slate-400 flex-shrink-0">{label}</span>
+            <div className="flex-1 h-7 bg-slate-800 rounded-lg overflow-hidden">
               <div
                 className={`h-full rounded-lg transition-all ${
                   row.win_rate >= 0.6
@@ -263,13 +263,13 @@ function ConfluenceChart({ rows }: { rows: WinRateByDimension[] }) {
             <span className={`w-14 text-sm font-mono tabular-nums font-semibold text-right flex-shrink-0 ${winRateColor(row.win_rate)}`}>
               {formatPct(row.win_rate)}
             </span>
-            <span className="w-16 text-xs text-zinc-500 font-mono tabular-nums text-right flex-shrink-0">
+            <span className="w-16 text-xs text-slate-500 font-mono tabular-nums text-right flex-shrink-0">
               {row.total} trade{row.total !== 1 ? 's' : ''}
             </span>
           </div>
         )
       })}
-      <p className="text-xs text-zinc-500 pt-1">
+      <p className="text-xs text-slate-500 pt-1">
         Bar width scaled to highest win rate. More confluences = higher win rate?
       </p>
     </div>
@@ -295,34 +295,34 @@ function CircuitBreakerSummary({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-zinc-800/60 border border-zinc-700/50 rounded-xl p-4">
+        <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4">
           <p className="text-2xl font-bold font-mono tabular-nums text-amber-400">
             {triggers50}
           </p>
-          <p className="text-zinc-400 text-sm mt-1">50% CB triggers</p>
+          <p className="text-slate-400 text-sm mt-1">50% CB triggers</p>
         </div>
-        <div className="bg-zinc-800/60 border border-zinc-700/50 rounded-xl p-4">
+        <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4">
           <p className="text-2xl font-bold font-mono tabular-nums text-red-400">
             {triggers80}
           </p>
-          <p className="text-zinc-400 text-sm mt-1">80% CB triggers</p>
+          <p className="text-slate-400 text-sm mt-1">80% CB triggers</p>
         </div>
-        <div className="bg-zinc-800/60 border border-zinc-700/50 rounded-xl p-4">
+        <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4">
           <p className="text-2xl font-bold font-mono tabular-nums text-red-400">
             {endedSessions}
           </p>
-          <p className="text-zinc-400 text-sm mt-1">Sessions force-ended</p>
+          <p className="text-slate-400 text-sm mt-1">Sessions force-ended</p>
         </div>
-        <div className="bg-zinc-800/60 border border-zinc-700/50 rounded-xl p-4">
+        <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4">
           <p className={`text-2xl font-bold font-mono tabular-nums ${cost <= 0 ? 'text-red-400' : 'text-emerald-400'}`}>
             {formatPnl(cost)}
           </p>
-          <p className="text-zinc-400 text-sm mt-1">Lockout session P&amp;L</p>
+          <p className="text-slate-400 text-sm mt-1">Lockout session P&amp;L</p>
         </div>
       </div>
 
       {triggers80 > 0 && cost < 0 && (
-        <div className="bg-zinc-800/30 border border-zinc-700 rounded-lg px-4 py-3 text-sm text-zinc-300">
+        <div className="bg-slate-800/30 border border-slate-700 rounded-lg px-4 py-3 text-sm text-slate-300">
           <span className="text-amber-400 font-semibold">Note: </span>
           The 80% circuit breaker ended {endedSessions} session
           {endedSessions !== 1 ? 's' : ''} that were already in a drawdown of{' '}
@@ -333,7 +333,7 @@ function CircuitBreakerSummary({
       )}
 
       {cbEvents.length === 0 && (
-        <p className="text-zinc-500 text-sm py-4 text-center">
+        <p className="text-slate-500 text-sm py-4 text-center">
           No circuit breaker events recorded yet. Great discipline!
         </p>
       )}
@@ -351,7 +351,7 @@ function Section({
   children: React.ReactNode
 }) {
   return (
-    <section className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+    <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
       <h2 className="text-base font-semibold text-white mb-4">{title}</h2>
       {children}
     </section>
@@ -369,13 +369,13 @@ function EmptyState() {
         </svg>
       </div>
       <h2 className="text-xl font-semibold text-white">No completed sessions yet</h2>
-      <p className="text-zinc-400 text-sm max-w-xs">
+      <p className="text-slate-400 text-sm max-w-xs">
         Complete your first trading session to start seeing analytics, equity curves,
         and win rate breakdowns.
       </p>
       <Link
         href="/dashboard"
-        className="mt-2 px-5 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-sm font-medium transition-colors"
+        className="mt-2 px-5 py-2.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-white text-sm font-medium transition-colors"
       >
         Start your first session
       </Link>
@@ -451,7 +451,7 @@ export default async function AnalyticsPage() {
     <div className="max-w-6xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Analytics</h1>
-        <p className="text-zinc-400 text-sm mt-1">
+        <p className="text-slate-400 text-sm mt-1">
           Performance overview across all completed sessions
         </p>
       </div>

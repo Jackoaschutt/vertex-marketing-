@@ -141,7 +141,7 @@ export default function NewSessionPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">Session In Progress</h1>
-          <p className="text-zinc-400 mb-8">
+          <p className="text-slate-400 mb-8">
             You already have an active trading session running.
           </p>
           <button
@@ -152,7 +152,7 @@ export default function NewSessionPage() {
           </button>
           <button
             onClick={() => router.back()}
-            className="mt-3 w-full py-3 rounded-2xl font-medium text-zinc-400 hover:text-white transition-colors text-sm"
+            className="mt-3 w-full py-3 rounded-2xl font-medium text-slate-400 hover:text-white transition-colors text-sm"
           >
             Go Back
           </button>
@@ -171,7 +171,7 @@ export default function NewSessionPage() {
           <h1 className="text-3xl font-black text-white">
             {accountName ?? 'Start Trading'}
           </h1>
-          {firmName && <p className="text-zinc-500 text-sm mt-1">{firmName}</p>}
+          {firmName && <p className="text-slate-500 text-sm mt-1">{firmName}</p>}
         </div>
 
         {/* Progress bar */}
@@ -180,19 +180,19 @@ export default function NewSessionPage() {
             <div
               key={i}
               className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                i < step ? 'bg-teal-500' : 'bg-zinc-800'
+                i < step ? 'bg-teal-500' : 'bg-slate-800'
               }`}
             />
           ))}
         </div>
 
         {/* Step card */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 shadow-2xl">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl">
 
           {/* Step 1: Which session */}
           {step === 1 && (
             <div>
-              <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-1">Step 1 of {TOTAL_STEPS}</p>
+              <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1">Step 1 of {TOTAL_STEPS}</p>
               <h2 className="text-xl font-bold text-white mb-6">Which session are you trading?</h2>
               <div className="flex flex-col gap-2">
                 {TRADING_SESSIONS.map((s) => (
@@ -203,13 +203,13 @@ export default function NewSessionPage() {
                     className={`flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all border ${
                       tradingSession === s.value
                         ? 'bg-teal-950/50 border-teal-500/60 shadow-lg shadow-teal-900/20'
-                        : 'bg-zinc-800/60 border-zinc-700 hover:border-zinc-600 hover:bg-zinc-800'
+                        : 'bg-slate-800/60 border-slate-700 hover:border-zinc-600 hover:bg-slate-800'
                     }`}
                   >
                     <span className="text-2xl">{s.emoji}</span>
                     <div>
                       <p className={`font-semibold text-sm ${tradingSession === s.value ? 'text-teal-300' : 'text-white'}`}>{s.label}</p>
-                      <p className="text-zinc-500 text-xs">{s.time}</p>
+                      <p className="text-slate-500 text-xs">{s.time}</p>
                     </div>
                     {tradingSession === s.value && (
                       <span className="ml-auto text-teal-400 text-lg">✓</span>
@@ -223,9 +223,9 @@ export default function NewSessionPage() {
           {/* Step 2: Emotional state */}
           {step === 2 && (
             <div>
-              <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-1">Step 2 of {TOTAL_STEPS}</p>
+              <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1">Step 2 of {TOTAL_STEPS}</p>
               <h2 className="text-xl font-bold text-white mb-2">How are you feeling right now?</h2>
-              <p className="text-zinc-500 text-sm mb-6">Be honest — this protects you.</p>
+              <p className="text-slate-500 text-sm mb-6">Be honest — this protects you.</p>
               <div className="flex flex-col gap-2">
                 {EMOTIONAL_STATES.map((s) => {
                   const selected = emotionalState === s.value
@@ -236,16 +236,16 @@ export default function NewSessionPage() {
                       onClick={() => setEmotionalState(s.value)}
                       className={`flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all border ${
                         selected
-                          ? 'bg-zinc-700/80 border-zinc-500 shadow-lg'
-                          : 'bg-zinc-800/60 border-zinc-700 hover:border-zinc-600 hover:bg-zinc-800'
+                          ? 'bg-slate-700/80 border-zinc-500 shadow-lg'
+                          : 'bg-slate-800/60 border-slate-700 hover:border-zinc-600 hover:bg-slate-800'
                       }`}
                     >
                       <span className="text-3xl">{s.emoji}</span>
                       <div>
                         <p className="font-semibold text-sm text-white">{s.value}</p>
-                        <p className="text-zinc-400 text-xs">{s.desc}</p>
+                        <p className="text-slate-400 text-xs">{s.desc}</p>
                       </div>
-                      {selected && <span className="ml-auto text-zinc-300 text-lg">✓</span>}
+                      {selected && <span className="ml-auto text-slate-300 text-lg">✓</span>}
                     </button>
                   )
                 })}
@@ -256,9 +256,9 @@ export default function NewSessionPage() {
           {/* Step 3: Clear setup */}
           {step === 3 && (
             <div>
-              <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-1">Step 3 of {TOTAL_STEPS}</p>
+              <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1">Step 3 of {TOTAL_STEPS}</p>
               <h2 className="text-xl font-bold text-white mb-2">Do you have a clear setup?</h2>
-              <p className="text-zinc-500 text-sm mb-8">A defined, backtested trade plan — not a gut feeling.</p>
+              <p className="text-slate-500 text-sm mb-8">A defined, backtested trade plan — not a gut feeling.</p>
               <div className="flex flex-col gap-3">
                 <button
                   type="button"
@@ -266,7 +266,7 @@ export default function NewSessionPage() {
                   className={`w-full py-5 rounded-2xl text-lg font-bold transition-all border ${
                     hasSetup === true
                       ? 'bg-emerald-800/60 border-emerald-500 text-emerald-300 shadow-lg shadow-emerald-900/20'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white'
+                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-zinc-500 hover:text-white'
                   }`}
                 >
                   ✅ Yes, I have a plan
@@ -277,7 +277,7 @@ export default function NewSessionPage() {
                   className={`w-full py-5 rounded-2xl text-lg font-bold transition-all border ${
                     hasSetup === false
                       ? 'bg-red-900/50 border-red-600 text-red-300 shadow-lg shadow-red-900/20'
-                      : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white'
+                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-zinc-500 hover:text-white'
                   }`}
                 >
                   ❌ No, just vibing
@@ -294,9 +294,9 @@ export default function NewSessionPage() {
           {/* Step 4: Game plan text */}
           {step === 4 && (
             <div>
-              <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest mb-1">Step 4 of {TOTAL_STEPS}</p>
+              <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1">Step 4 of {TOTAL_STEPS}</p>
               <h2 className="text-xl font-bold text-white mb-2">What are you looking to see?</h2>
-              <p className="text-zinc-500 text-sm mb-6">
+              <p className="text-slate-500 text-sm mb-6">
                 Describe the specific price action or setup you need before pulling the trigger.
                 You can&apos;t skip this — accountability starts here.
               </p>
@@ -305,7 +305,7 @@ export default function NewSessionPage() {
                 onChange={(e) => setGamePlan(e.target.value)}
                 placeholder="e.g. I'm waiting for a break and retest of the NY open high, with a clean FVG and bullish displacement before entry. Min 2:1 RR only."
                 rows={5}
-                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 resize-none placeholder:text-zinc-600 leading-relaxed"
+                className="w-full bg-slate-800 border border-slate-700 text-white rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 resize-none placeholder:text-zinc-600 leading-relaxed"
               />
               <div className="flex items-center justify-between mt-2 px-1">
                 <p className={`text-xs transition-colors ${gamePlan.trim().length >= 15 ? 'text-emerald-500' : 'text-zinc-600'}`}>
@@ -329,7 +329,7 @@ export default function NewSessionPage() {
           {step > 1 && (
             <button
               onClick={back}
-              className="px-5 py-3.5 rounded-2xl font-semibold text-zinc-400 bg-zinc-800 hover:bg-zinc-700 hover:text-white transition-all text-sm"
+              className="px-5 py-3.5 rounded-2xl font-semibold text-slate-400 bg-slate-800 hover:bg-slate-700 hover:text-white transition-all text-sm"
             >
               ← Back
             </button>
@@ -375,7 +375,7 @@ export default function NewSessionPage() {
                   ? 'w-5 h-2 bg-teal-500'
                   : i + 1 < step
                   ? 'w-2 h-2 bg-teal-700'
-                  : 'w-2 h-2 bg-zinc-700'
+                  : 'w-2 h-2 bg-slate-700'
               }`}
             />
           ))}

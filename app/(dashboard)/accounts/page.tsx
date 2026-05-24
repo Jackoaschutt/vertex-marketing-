@@ -36,20 +36,20 @@ const STATUS_CONFIG: Record<
   active: {
     label: 'Active',
     borderColor: 'border-teal-500',
-    badgeClass: 'bg-teal-950 text-teal-300 border border-teal-800/40',
-    countBadgeClass: 'bg-teal-950 text-teal-400',
+    badgeClass: 'bg-teal-500/10 text-teal-400 border border-teal-500/20',
+    countBadgeClass: 'bg-teal-500/10 text-teal-400',
   },
   passed: {
     label: 'Passed',
     borderColor: 'border-emerald-500',
-    badgeClass: 'bg-emerald-950 text-emerald-400 border border-emerald-800/40',
-    countBadgeClass: 'bg-emerald-950 text-emerald-400',
+    badgeClass: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+    countBadgeClass: 'bg-emerald-500/10 text-emerald-400',
   },
   failed: {
     label: 'Failed',
     borderColor: 'border-red-500',
-    badgeClass: 'bg-red-950 text-red-400 border border-red-800/40',
-    countBadgeClass: 'bg-red-950 text-red-400',
+    badgeClass: 'bg-red-500/10 text-red-400 border border-red-500/20',
+    countBadgeClass: 'bg-red-500/10 text-red-400',
   },
 }
 
@@ -63,7 +63,7 @@ function AccountCard({ account }: { account: PropAccount }) {
 
   return (
     <div
-      className={`bg-zinc-900 border border-zinc-800 rounded-xl p-5 border-l-4 ${cfg.borderColor} hover:border-zinc-700 transition-colors`}
+      className={`bg-slate-900 border border-slate-800 rounded-2xl p-5 border-l-4 ${cfg.borderColor} hover:border-slate-700 transition-colors`}
     >
       <div className="flex items-center justify-between mb-1">
         <span className="font-semibold text-lg text-white">{account.nickname}</span>
@@ -73,18 +73,18 @@ function AccountCard({ account }: { account: PropAccount }) {
       </div>
 
       {firm && (
-        <p className="text-zinc-400 text-sm mb-3">{firm.name}</p>
+        <p className="text-slate-400 text-sm mb-3">{firm.name}</p>
       )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <div>
-          <p className="text-xs text-zinc-500 mb-0.5">Starting Balance</p>
+          <p className="text-xs text-slate-500 mb-0.5">Starting Balance</p>
           <p className="text-sm font-medium text-white">
             {formatCurrency(account.starting_balance)}
           </p>
         </div>
         <div>
-          <p className="text-xs text-zinc-500 mb-0.5">Current Balance</p>
+          <p className="text-xs text-slate-500 mb-0.5">Current Balance</p>
           <p
             className={`text-sm font-medium ${
               balanceUp ? 'text-emerald-400' : 'text-red-400'
@@ -94,13 +94,13 @@ function AccountCard({ account }: { account: PropAccount }) {
           </p>
         </div>
         <div>
-          <p className="text-xs text-zinc-500 mb-0.5">DLL</p>
+          <p className="text-xs text-slate-500 mb-0.5">DLL</p>
           <p className="text-sm font-medium text-white">
             {firm ? formatCurrency(firm.dll_amount) + '/day' : '—'}
           </p>
         </div>
         <div>
-          <p className="text-xs text-zinc-500 mb-0.5">Profit Target</p>
+          <p className="text-xs text-slate-500 mb-0.5">Profit Target</p>
           <p className="text-sm font-medium text-white">
             {firm ? formatCurrency(firm.profit_target) : '—'}
           </p>
@@ -108,7 +108,7 @@ function AccountCard({ account }: { account: PropAccount }) {
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-500">
+        <span className="text-xs text-slate-500">
           Created {formatDate(account.created_at)}
         </span>
         <Link
@@ -145,7 +145,7 @@ function AccountSection({
       </div>
 
       {accounts.length === 0 ? (
-        <p className="text-sm text-zinc-500">No {cfg.label.toLowerCase()} accounts.</p>
+        <p className="text-sm text-slate-500">No {cfg.label.toLowerCase()} accounts.</p>
       ) : (
         <div className="space-y-3">
           {accounts.map((account) => (
@@ -187,7 +187,7 @@ export default async function AccountsPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Prop Accounts</h1>
-          <p className="text-zinc-500 text-sm mt-1">
+          <p className="text-slate-500 text-sm mt-1">
             {allAccounts.length} account{allAccounts.length !== 1 ? 's' : ''} total
           </p>
         </div>

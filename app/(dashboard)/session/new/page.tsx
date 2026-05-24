@@ -86,8 +86,10 @@ export default function NewSessionPage() {
   const step2Valid = emotionalState !== ''
   const step3Valid = hasSetup !== null
   const step4Valid = gamePlan.trim().length >= 15
+  const allValid = step1Valid && step2Valid && step3Valid && step4Valid
 
   async function handleSubmit() {
+    if (!allValid) return
     setLoading(true)
     setError(null)
     try {
@@ -347,7 +349,7 @@ export default function NewSessionPage() {
           ) : (
             <button
               onClick={handleSubmit}
-              disabled={!step4Valid || loading}
+              disabled={!allValid || loading}
               className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-sky-600 hover:bg-sky-500 transition-all text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-sky-900/30 active:scale-[0.98]"
             >
               {loading ? (

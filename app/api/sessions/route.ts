@@ -28,6 +28,11 @@ export async function POST(req: NextRequest) {
 
   const { prop_account_id, trading_session, pre_emotional_state, has_setup, game_plan } = await req.json()
 
+  const VALID_SESSIONS = ['LONDON', 'NY_OPEN', 'NY_CLOSE', 'ASIA', 'OTHER']
+  if (!VALID_SESSIONS.includes(trading_session)) {
+    return NextResponse.json({ error: 'Please select a trading session.' }, { status: 400 })
+  }
+
   // Verify prop_account belongs to user
   const { data: account } = await supabase
     .from('prop_accounts')

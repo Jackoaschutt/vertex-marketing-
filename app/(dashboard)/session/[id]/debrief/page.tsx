@@ -18,6 +18,38 @@ function formatDuration(start: string, end: string | null): string {
   return `${s}s`
 }
 
+// ─── Markdown-like renderer for AI review ─────────────────────────────────────
+
+function AiReviewText({ text }: { text: string }) {
+  const lines = text.split('\n')
+  return (
+    <div className="space-y-2 text-sm text-slate-300 leading-relaxed">
+      {lines.map((line, i) => {
+        if (line.startsWith('**') && line.endsWith('**')) {
+          return (
+            <p key={i} className="text-teal-400 font-semibold text-xs uppercase tracking-wide mt-4 first:mt-0">
+              {line.replace(/\*\*/g, '')}
+            </p>
+          )
+        }
+        if (line.match(/^\*\*(.+)\*\*/)) {
+          return (
+            <p key={i} className="text-slate-200">
+              {line.split(/(\*\*[^*]+\*\*)/).map((part, j) =>
+                part.startsWith('**') ? (
+                  <span key={j} className="font-semibold text-white">{part.replace(/\*\*/g, '')}</span>
+                ) : part
+              )}
+            </p>
+          )
+        }
+        if (line.trim() === '') return <div key={i} className="h-1" />
+        return <p key={i}>{line}</p>
+      })}
+    </div>
+  )
+}
+
 export default function DebriefPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
@@ -33,6 +65,11 @@ export default function DebriefPage() {
   const [emotionalRating, setEmotionalRating] = useState<number | null>(null)
   const [notes, setNotes] = useState('')
   const [willTradeTomorrow, setWillTradeTomorrow] = useState<boolean | null>(null)
+
+  // AI Review state
+  const [aiReview, setAiReview] = useState<string | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -52,6 +89,21 @@ export default function DebriefPage() {
 
   const totalPnl = trades.reduce((sum, t) => sum + t.pnl, 0)
   const pnlColor = totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
+
+  async function handleGetAiReview() {
+    setAiLoading(true)
+    setAiError(null)
+    try {
+      const res = await fetch(`/api/sessions/${id}/ai-review`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to get AI review')
+      setAiReview(data.review)
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'AI review failed')
+    } finally {
+      setAiLoading(false)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -103,6 +155,8 @@ export default function DebriefPage() {
     )
   }
 
+  const sessionWithGamePlan = session as Session & { game_plan?: string }
+
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
       <div className="mb-8">
@@ -114,8 +168,8 @@ export default function DebriefPage() {
       </div>
 
       {/* Session summary */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-8">
-        <h2 className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-4">
+      <div className="bg-gradient-to-br from-[#0d1526] to-[#0a1018] border border-slate-800/60 rounded-2xl p-6 mb-6">
+        <h2 className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-4">
           Session Summary
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -137,10 +191,72 @@ export default function DebriefPage() {
         </div>
       </div>
 
+      {/* Game plan recap */}
+      {sessionWithGamePlan.game_plan && (
+        <div className="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-5 mb-6">
+          <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">Your Pre-Session Game Plan</p>
+          <p className="text-sm text-slate-300 leading-relaxed italic">&ldquo;{sessionWithGamePlan.game_plan}&rdquo;</p>
+        </div>
+      )}
+
+      {/* AI Session Review */}
+      <div className="bg-gradient-to-br from-[#0d1526] to-[#0a1018] border border-teal-500/20 rounded-2xl p-6 mb-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-xl bg-teal-500/15 border border-teal-500/20 flex items-center justify-center flex-shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 8V4H8" /><rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+              <path d="M22 14H2M22 18H2M22 22H2" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-white">AI Session Review</h2>
+            <p className="text-xs text-slate-500">PropGuard AI compares your plan vs execution</p>
+          </div>
+        </div>
+
+        {!aiReview && !aiLoading && (
+          <div>
+            {!sessionWithGamePlan.game_plan && (
+              <p className="text-xs text-amber-400/70 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mb-3">
+                No game plan was written — start sessions with a plan for better AI analysis.
+              </p>
+            )}
+            <button
+              onClick={handleGetAiReview}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold bg-teal-500/15 hover:bg-teal-500/25 border border-teal-500/30 text-teal-400 hover:text-teal-300 transition-all"
+            >
+              Get AI Review of This Session →
+            </button>
+            {aiError && (
+              <p className="text-xs text-red-400 mt-2 text-center">{aiError}</p>
+            )}
+          </div>
+        )}
+
+        {aiLoading && (
+          <div className="flex items-center justify-center gap-3 py-6">
+            <div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-slate-400">Analyzing your session…</p>
+          </div>
+        )}
+
+        {aiReview && (
+          <div className="mt-2">
+            <AiReviewText text={aiReview} />
+            <button
+              onClick={() => setAiReview(null)}
+              className="text-xs text-slate-600 hover:text-slate-500 mt-4 transition-colors"
+            >
+              Regenerate review
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Debrief form */}
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {/* Q1: Rules */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <div className="bg-gradient-to-br from-[#0d1526] to-[#0a1018] border border-slate-800/60 rounded-2xl p-6">
           <label className="block text-sm font-semibold text-slate-200 mb-4">
             <span className="text-teal-400 font-bold mr-2">1.</span>
             Did you follow your rules today?
@@ -168,7 +284,7 @@ export default function DebriefPage() {
         </div>
 
         {/* Q2: Emotional control rating */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <div className="bg-gradient-to-br from-[#0d1526] to-[#0a1018] border border-slate-800/60 rounded-2xl p-6">
           <label className="block text-sm font-semibold text-slate-200 mb-4">
             <span className="text-teal-400 font-bold mr-2">2.</span>
             Rate your emotional control (1–10)
@@ -205,7 +321,7 @@ export default function DebriefPage() {
         </div>
 
         {/* Q3: Notes */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <div className="bg-gradient-to-br from-[#0d1526] to-[#0a1018] border border-slate-800/60 rounded-2xl p-6">
           <label className="block text-sm font-semibold text-slate-200 mb-3">
             <span className="text-teal-400 font-bold mr-2">3.</span>
             Session notes{' '}
@@ -216,12 +332,12 @@ export default function DebriefPage() {
             onChange={(e) => setNotes(e.target.value)}
             placeholder="What went well? What do you want to do differently next session?"
             rows={4}
-            className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 placeholder:text-zinc-600 resize-none"
+            className="w-full bg-slate-800/60 border border-slate-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 placeholder:text-zinc-600 resize-none"
           />
         </div>
 
         {/* Q4: Will trade tomorrow */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <div className="bg-gradient-to-br from-[#0d1526] to-[#0a1018] border border-slate-800/60 rounded-2xl p-6">
           <label className="block text-sm font-semibold text-slate-200 mb-4">
             <span className="text-teal-400 font-bold mr-2">4.</span>
             Will you trade tomorrow?
@@ -261,7 +377,7 @@ export default function DebriefPage() {
         <button
           type="submit"
           disabled={!canSubmit || submitting}
-          className="w-full py-4 rounded-xl font-semibold bg-teal-600 hover:bg-teal-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-full py-4 rounded-xl font-semibold bg-teal-500 hover:bg-teal-400 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-teal-500/20"
         >
           {submitting ? 'Saving...' : 'Save Debrief & End Session'}
         </button>

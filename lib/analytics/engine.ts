@@ -28,7 +28,13 @@ function winRateStats(trades: Trade[]): Omit<WinRateByDimension, 'dimension'> {
   const total = trades.length
   const win_rate = total > 0 ? wins / total : 0
   const avg_pnl = total > 0 ? trades.reduce((s, t) => s + t.pnl, 0) / total : 0
-  return { wins, losses, breakevens, total, win_rate, avg_pnl }
+  const gross_profit = trades.filter(t => t.pnl > 0).reduce((s, t) => s + t.pnl, 0)
+  const gross_loss = Math.abs(trades.filter(t => t.pnl < 0).reduce((s, t) => s + t.pnl, 0))
+  const pf = gross_loss === 0 ? (gross_profit > 0 ? Infinity : 1) : gross_profit / gross_loss
+  const avg_win = wins > 0 ? gross_profit / wins : 0
+  const avg_loss = losses > 0 ? gross_loss / losses : 0
+  const expectancy = avg_win * win_rate - avg_loss * (1 - win_rate)
+  return { wins, losses, breakevens, total, win_rate, avg_pnl, profit_factor: pf, expectancy }
 }
 
 function profitFactor(trades: Trade[]): number {

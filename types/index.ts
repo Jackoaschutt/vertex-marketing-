@@ -112,6 +112,8 @@ export interface WinRateByDimension {
   total: number
   win_rate: number
   avg_pnl: number
+  profit_factor: number
+  expectancy: number
 }
 
 export interface EquityPoint {

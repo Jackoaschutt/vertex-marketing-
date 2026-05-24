@@ -178,9 +178,11 @@ function winRateColor(rate: number): string {
 function WinRateTable({
   rows,
   emptyMessage = 'No data yet',
+  showPlaybookCols = false,
 }: {
   rows: WinRateByDimension[]
   emptyMessage?: string
+  showPlaybookCols?: boolean
 }) {
   if (rows.length === 0) {
     return <p className="text-slate-500 text-sm py-6 text-center">{emptyMessage}</p>
@@ -197,43 +199,62 @@ function WinRateTable({
             <th className="pb-2 pr-4 text-xs font-semibold uppercase tracking-wide tabular-nums text-right">Trades</th>
             <th className="pb-2 pr-4 text-xs font-semibold uppercase tracking-wide text-right">Win Rate</th>
             <th className="pb-2 pr-4 text-xs font-semibold uppercase tracking-wide text-right">Avg P&amp;L</th>
+            {showPlaybookCols && (
+              <>
+                <th className="pb-2 pr-4 text-xs font-semibold uppercase tracking-wide text-right">Prof. Factor</th>
+                <th className="pb-2 pr-4 text-xs font-semibold uppercase tracking-wide text-right">Expectancy</th>
+              </>
+            )}
             <th className="pb-2 text-xs font-semibold uppercase tracking-wide">Distribution</th>
           </tr>
         </thead>
         <tbody>
-          {sorted.map((row) => (
-            <tr
-              key={row.dimension}
-              className="border-b border-slate-800/50 last:border-0 hover:bg-white/[0.02] transition-colors"
-            >
-              <td className="py-2.5 pr-4 text-slate-200 font-medium capitalize">
-                {row.dimension}
-              </td>
-              <td className="py-2.5 pr-4 text-slate-400 font-mono tabular-nums text-right">
-                {row.total}
-              </td>
-              <td className={`py-2.5 pr-4 font-mono tabular-nums font-semibold text-right ${winRateColor(row.win_rate)}`}>
-                {formatPct(row.win_rate)}
-              </td>
-              <td className={`py-2.5 pr-4 font-mono tabular-nums text-right ${row.avg_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {formatPnl(row.avg_pnl)}
-              </td>
-              <td className="py-2.5">
-                <div className="w-28 h-2 rounded-full bg-slate-800 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      row.win_rate >= 0.6
-                        ? 'bg-emerald-500'
-                        : row.win_rate >= 0.4
-                        ? 'bg-amber-500'
-                        : 'bg-red-500'
-                    }`}
-                    style={{ width: `${Math.round(row.win_rate * 100)}%` }}
-                  />
-                </div>
-              </td>
-            </tr>
-          ))}
+          {sorted.map((row) => {
+            const pfDisplay = row.profit_factor === Infinity ? '∞' : isFinite(row.profit_factor) ? row.profit_factor.toFixed(2) + 'x' : '—'
+            return (
+              <tr
+                key={row.dimension}
+                className="border-b border-slate-800/50 last:border-0 hover:bg-white/[0.02] transition-colors"
+              >
+                <td className="py-2.5 pr-4 text-slate-200 font-medium capitalize">
+                  {row.dimension}
+                </td>
+                <td className="py-2.5 pr-4 text-slate-400 font-mono tabular-nums text-right">
+                  {row.total}
+                </td>
+                <td className={`py-2.5 pr-4 font-mono tabular-nums font-semibold text-right ${winRateColor(row.win_rate)}`}>
+                  {formatPct(row.win_rate)}
+                </td>
+                <td className={`py-2.5 pr-4 font-mono tabular-nums text-right ${row.avg_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatPnl(row.avg_pnl)}
+                </td>
+                {showPlaybookCols && (
+                  <>
+                    <td className={`py-2.5 pr-4 font-mono tabular-nums text-right ${row.profit_factor >= 1.5 ? 'text-emerald-400' : row.profit_factor >= 1 ? 'text-amber-400' : 'text-red-400'}`}>
+                      {pfDisplay}
+                    </td>
+                    <td className={`py-2.5 pr-4 font-mono tabular-nums text-right ${row.expectancy >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {formatPnl(row.expectancy)}
+                    </td>
+                  </>
+                )}
+                <td className="py-2.5">
+                  <div className="w-28 h-2 rounded-full bg-slate-800 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        row.win_rate >= 0.6
+                          ? 'bg-emerald-500'
+                          : row.win_rate >= 0.4
+                          ? 'bg-amber-500'
+                          : 'bg-red-500'
+                      }`}
+                      style={{ width: `${Math.round(row.win_rate * 100)}%` }}
+                    />
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
@@ -709,10 +730,11 @@ export default async function AnalyticsPage() {
         <DayOfWeekChart rows={analytics.pnl_by_day_of_week} />
       </Section>
 
-      <Section title="Playbook Performance" subtitle="Win rate and avg P&L by setup type">
+      <Section title="Playbook Performance" subtitle="Win rate, profit factor, and expectancy per setup — your edge quantified">
         <WinRateTable
           rows={analytics.win_rate_by_setup}
           emptyMessage="No trades with setup types recorded yet — add setups in Settings"
+          showPlaybookCols
         />
       </Section>
 

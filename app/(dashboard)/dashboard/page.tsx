@@ -88,11 +88,44 @@ export default async function DashboardPage() {
     .eq('is_custom', false)
     .order('name')
 
+  // Fetch all completed sessions for PropScore
+  const { data: allCompletedSessions } = await supabase
+    .from('sessions')
+    .select('has_setup, debrief_responses')
+    .in('prop_account_id', accountIds.length ? accountIds : ['__none__'])
+    .eq('status', 'completed')
+
+  const completedSessions = allCompletedSessions ?? []
+
+  // PropScore: 0-100 discipline metric
+  const totalCompleted = completedSessions.length
+  const hasSetupRate = totalCompleted > 0
+    ? completedSessions.filter(s => s.has_setup === true).length / totalCompleted
+    : 0
+  const sessionsWithDebrief = completedSessions.filter(s => s.debrief_responses)
+  const adherenceRate = sessionsWithDebrief.length > 0
+    ? sessionsWithDebrief.filter(s =>
+        s.debrief_responses?.followed_rules === 'yes' ||
+        s.debrief_responses?.followed_rules === 'mostly'
+      ).length / sessionsWithDebrief.length
+    : 0
+  const debriefCompletionRate = totalCompleted > 0
+    ? sessionsWithDebrief.length / totalCompleted
+    : 0
+
   const trades = (weekTrades ?? []) as (Trade & { created_at: string })[]
   const weekPnl = trades.reduce((sum, t) => sum + (t.pnl ?? 0), 0)
   const weekWins = trades.filter((t) => t.result === 'win').length
   const winRate =
     trades.length > 0 ? Math.round((weekWins / trades.length) * 100) : null
+
+  const weekWinRate = trades.length > 0 ? weekWins / trades.length : 0
+  const propScore = totalCompleted === 0 ? null : Math.round(
+    (weekWinRate * 25) +
+    (adherenceRate * 30) +
+    (debriefCompletionRate * 25) +
+    (hasSetupRate * 20)
+  )
 
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
@@ -140,7 +173,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Metric Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
 
         {/* Week P&L */}
         <div className="relative bg-gradient-to-br from-[#0d1526] to-[#0b1020] border border-slate-800/60 rounded-2xl p-5 overflow-hidden">
@@ -189,6 +222,32 @@ export default async function DashboardPage() {
           <p className="text-slate-500 text-xs mt-1 font-medium uppercase tracking-wide">Win Rate This Week</p>
           {trades.length > 0 && (
             <p className="text-slate-600 text-xs mt-0.5">{weekWins}W / {trades.length - weekWins}L</p>
+          )}
+        </div>
+
+        {/* PropScore */}
+        <div className="relative bg-gradient-to-br from-[#0d1526] to-[#0b1020] border border-slate-800/60 rounded-2xl p-5 overflow-hidden">
+          <div className={`absolute -top-6 -right-6 w-24 h-24 ${
+            propScore === null ? 'bg-slate-500/10' : propScore >= 70 ? 'bg-teal-500/20' : propScore >= 45 ? 'bg-amber-500/20' : 'bg-red-500/20'
+          } rounded-full blur-2xl pointer-events-none`} />
+          <div className="w-9 h-9 rounded-xl bg-teal-500/15 border border-white/5 flex items-center justify-center mb-4">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+            </svg>
+          </div>
+          <p className={`text-2xl font-bold font-mono tabular-nums ${
+            propScore === null ? 'text-slate-500' : propScore >= 70 ? 'text-teal-400' : propScore >= 45 ? 'text-amber-400' : 'text-red-400'
+          }`}>
+            {propScore !== null ? `${propScore}` : '—'}
+          </p>
+          <p className="text-slate-500 text-xs mt-1 font-medium uppercase tracking-wide">PropScore</p>
+          {propScore !== null && (
+            <p className="text-slate-600 text-xs mt-0.5">
+              {propScore >= 70 ? 'Disciplined' : propScore >= 45 ? 'Developing' : 'Needs work'}
+            </p>
+          )}
+          {propScore === null && (
+            <p className="text-slate-600 text-xs mt-0.5">Complete sessions to score</p>
           )}
         </div>
       </div>

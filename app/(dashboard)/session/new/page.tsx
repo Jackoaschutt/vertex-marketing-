@@ -14,11 +14,11 @@ const TRADING_SESSIONS: { value: TradingSession; label: string; emoji: string; t
 ]
 
 const EMOTIONAL_STATES = [
-  { value: 'Calm', emoji: '😌', color: 'emerald', desc: 'Clear headed, relaxed' },
-  { value: 'Focused', emoji: '🎯', color: 'sky', desc: 'Locked in, sharp' },
-  { value: 'Anxious', emoji: '😰', color: 'yellow', desc: 'Nervous, second-guessing' },
-  { value: 'Frustrated', emoji: '😤', color: 'orange', desc: 'Annoyed, edge taking over' },
-  { value: 'Euphoric', emoji: '🤑', color: 'purple', desc: 'Overconfident, chasing' },
+  { value: 'Calm', emoji: '😌', desc: 'Clear headed, relaxed' },
+  { value: 'Focused', emoji: '🎯', desc: 'Locked in, sharp' },
+  { value: 'Anxious', emoji: '😰', desc: 'Nervous, second-guessing' },
+  { value: 'Frustrated', emoji: '😤', desc: 'Annoyed, edge taking over' },
+  { value: 'Euphoric', emoji: '🤑', desc: 'Overconfident, chasing' },
 ]
 
 const TOTAL_STEPS = 4
@@ -29,7 +29,6 @@ export default function NewSessionPage() {
   const accountId = searchParams.get('account') ?? ''
 
   const [step, setStep] = useState(1)
-  const [direction, setDirection] = useState<'forward' | 'back'>('forward')
 
   const [accountName, setAccountName] = useState<string | null>(null)
   const [firmName, setFirmName] = useState<string | null>(null)
@@ -74,11 +73,9 @@ export default function NewSessionPage() {
   }, [accountId])
 
   function next() {
-    setDirection('forward')
     setStep(s => Math.min(s + 1, TOTAL_STEPS))
   }
   function back() {
-    setDirection('back')
     setStep(s => Math.max(s - 1, 1))
   }
 
@@ -129,7 +126,7 @@ export default function NewSessionPage() {
   if (checkingActive) {
     return (
       <div className="min-h-full flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -138,14 +135,18 @@ export default function NewSessionPage() {
     return (
       <div className="min-h-full flex items-center justify-center py-12 px-4">
         <div className="w-full max-w-md text-center">
-          <div className="text-6xl mb-6">⚡</div>
+          <div className="w-16 h-16 rounded-2xl bg-teal-900/40 border border-teal-700/40 flex items-center justify-center mx-auto mb-6">
+            <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#2dd4bf" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+            </svg>
+          </div>
           <h1 className="text-2xl font-bold text-white mb-2">Session In Progress</h1>
           <p className="text-zinc-400 mb-8">
             You already have an active trading session running.
           </p>
           <button
             onClick={() => router.push(`/session/${activeSessionId}`)}
-            className="w-full py-4 rounded-2xl font-bold text-white bg-sky-600 hover:bg-sky-500 transition-all text-lg shadow-lg shadow-sky-900/30 hover:shadow-sky-900/50 hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full py-4 rounded-2xl font-bold text-white bg-teal-600 hover:bg-teal-500 transition-all text-lg shadow-lg shadow-teal-900/30 hover:shadow-teal-900/50 hover:scale-[1.02] active:scale-[0.98]"
           >
             Resume Session →
           </button>
@@ -166,7 +167,7 @@ export default function NewSessionPage() {
 
         {/* Header */}
         <div className="mb-6 text-center">
-          <p className="text-sky-400 text-xs font-bold uppercase tracking-widest mb-1">Pre-Session Check</p>
+          <p className="text-teal-400 text-xs font-bold uppercase tracking-widest mb-1">Pre-Session Check</p>
           <h1 className="text-3xl font-black text-white">
             {accountName ?? 'Start Trading'}
           </h1>
@@ -178,8 +179,8 @@ export default function NewSessionPage() {
           {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
             <div
               key={i}
-              className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                i < step ? 'bg-sky-500' : 'bg-zinc-800'
+              className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+                i < step ? 'bg-teal-500' : 'bg-zinc-800'
               }`}
             />
           ))}
@@ -201,17 +202,17 @@ export default function NewSessionPage() {
                     onClick={() => setTradingSession(s.value)}
                     className={`flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all border ${
                       tradingSession === s.value
-                        ? 'bg-sky-900/40 border-sky-500 shadow-lg shadow-sky-900/20'
-                        : 'bg-zinc-800/60 border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800'
+                        ? 'bg-teal-950/50 border-teal-500/60 shadow-lg shadow-teal-900/20'
+                        : 'bg-zinc-800/60 border-zinc-700 hover:border-zinc-600 hover:bg-zinc-800'
                     }`}
                   >
                     <span className="text-2xl">{s.emoji}</span>
                     <div>
-                      <p className={`font-semibold text-sm ${tradingSession === s.value ? 'text-sky-300' : 'text-white'}`}>{s.label}</p>
+                      <p className={`font-semibold text-sm ${tradingSession === s.value ? 'text-teal-300' : 'text-white'}`}>{s.label}</p>
                       <p className="text-zinc-500 text-xs">{s.time}</p>
                     </div>
                     {tradingSession === s.value && (
-                      <span className="ml-auto text-sky-400 text-lg">✓</span>
+                      <span className="ml-auto text-teal-400 text-lg">✓</span>
                     )}
                   </button>
                 ))}
@@ -235,8 +236,8 @@ export default function NewSessionPage() {
                       onClick={() => setEmotionalState(s.value)}
                       className={`flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all border ${
                         selected
-                          ? 'bg-zinc-700 border-zinc-500 shadow-lg'
-                          : 'bg-zinc-800/60 border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800'
+                          ? 'bg-zinc-700/80 border-zinc-500 shadow-lg'
+                          : 'bg-zinc-800/60 border-zinc-700 hover:border-zinc-600 hover:bg-zinc-800'
                       }`}
                     >
                       <span className="text-3xl">{s.emoji}</span>
@@ -304,7 +305,7 @@ export default function NewSessionPage() {
                 onChange={(e) => setGamePlan(e.target.value)}
                 placeholder="e.g. I'm waiting for a break and retest of the NY open high, with a clean FVG and bullish displacement before entry. Min 2:1 RR only."
                 rows={5}
-                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-600 resize-none placeholder:text-zinc-600 leading-relaxed"
+                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 resize-none placeholder:text-zinc-600 leading-relaxed"
               />
               <div className="flex items-center justify-between mt-2 px-1">
                 <p className={`text-xs transition-colors ${gamePlan.trim().length >= 15 ? 'text-emerald-500' : 'text-zinc-600'}`}>
@@ -342,7 +343,7 @@ export default function NewSessionPage() {
                 (step === 2 && !step2Valid) ||
                 (step === 3 && !step3Valid)
               }
-              className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-sky-600 hover:bg-sky-500 transition-all text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-sky-900/30 active:scale-[0.98]"
+              className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-teal-600 hover:bg-teal-500 transition-all text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-teal-900/30 active:scale-[0.98]"
             >
               Continue →
             </button>
@@ -350,7 +351,7 @@ export default function NewSessionPage() {
             <button
               onClick={handleSubmit}
               disabled={!allValid || loading}
-              className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-sky-600 hover:bg-sky-500 transition-all text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-sky-900/30 active:scale-[0.98]"
+              className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-teal-600 hover:bg-teal-500 transition-all text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-teal-900/30 active:scale-[0.98]"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -371,9 +372,9 @@ export default function NewSessionPage() {
               key={i}
               className={`rounded-full transition-all duration-300 ${
                 i + 1 === step
-                  ? 'w-5 h-2 bg-sky-500'
+                  ? 'w-5 h-2 bg-teal-500'
                   : i + 1 < step
-                  ? 'w-2 h-2 bg-sky-700'
+                  ? 'w-2 h-2 bg-teal-700'
                   : 'w-2 h-2 bg-zinc-700'
               }`}
             />

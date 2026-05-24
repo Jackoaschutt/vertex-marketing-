@@ -61,7 +61,6 @@ export interface Session {
   trading_session: TradingSession | null
   pre_emotional_state: string | null
   has_setup: boolean | null
-  game_plan: string | null
   debrief_responses: DebriefResponses | null
   status: SessionStatus
   created_at: string

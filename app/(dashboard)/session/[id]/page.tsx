@@ -39,21 +39,18 @@ export default function SessionPage() {
   const [pnlSource, setPnlSource] = useState<'manual' | 'extension'>('manual')
   const [loading, setLoading] = useState(true)
 
-  // Fetch session data on mount
   useEffect(() => {
     if (!id) return
     fetch(`/api/sessions/${id}`)
       .then((r) => r.json())
       .then(({ session: s, trades: t, cbEvents: cb }) => {
         setSession(s)
-        // account is embedded in session as prop_accounts
         if (s?.prop_accounts) {
           setAccount(s.prop_accounts as AccountWithRules)
         }
         setTrades(t ?? [])
         setCbEvents(cb ?? [])
 
-        // Restore triggered thresholds from existing events
         const thresholds = new Set<CircuitBreakerThreshold>()
         ;(cb ?? []).forEach((event: CircuitBreakerEvent) => {
           thresholds.add(event.threshold_pct)
@@ -64,14 +61,10 @@ export default function SessionPage() {
       .catch(() => setLoading(false))
   }, [id])
 
-  // Fetch setup types
   useEffect(() => {
-    // Setup types come from trader profile — fetch via supabase directly
-    // We'll skip for now as the API doesn't expose them; TradeForm handles empty array gracefully
     setSetupTypes([])
   }, [])
 
-  // Chrome extension PnL listener
   useEffect(() => {
     const handler = (e: Event) => {
       const customEvent = e as CustomEvent<{ pnl: number }>
@@ -82,11 +75,9 @@ export default function SessionPage() {
     return () => window.removeEventListener('propguard:pnl', handler as EventListener)
   }, [])
 
-  // Compute effective P&L
   const manualPnl = trades.reduce((sum, t) => sum + t.pnl, 0)
   const effectivePnl = pnlSource === 'extension' ? sessionPnl : manualPnl
 
-  // Circuit breaker evaluation
   useEffect(() => {
     if (!account?.prop_firm_rules) return
     const pnlState = computeSessionPnLState(effectivePnl, account.prop_firm_rules.dll_amount)
@@ -123,7 +114,7 @@ export default function SessionPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-zinc-400 animate-pulse text-sm">Loading session...</div>
+        <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -140,15 +131,12 @@ export default function SessionPage() {
 
   return (
     <div className="flex flex-col h-full -m-8">
-      {/* Header */}
       <SessionHeader session={session} account={account} onEndSession={handleEndSession} />
 
-      {/* Main content */}
       <div className="flex-1 overflow-y-auto p-6">
-        {/* P&L source indicator */}
         {pnlSource === 'extension' && (
-          <div className="mb-4 flex items-center gap-2 text-xs text-sky-400 bg-sky-900/20 border border-sky-800/40 rounded-lg px-3 py-2 w-fit">
-            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+          <div className="mb-4 flex items-center gap-2 text-xs text-teal-400 bg-teal-900/20 border border-teal-800/40 rounded-lg px-3 py-2 w-fit">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
             P&L synced from browser extension
           </div>
         )}
@@ -163,7 +151,6 @@ export default function SessionPage() {
               <PnlGauge pnl={effectivePnl} dllAmount={dllAmount} />
             </div>
 
-            {/* CB events summary */}
             {cbEvents.length > 0 && (
               <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
                 <h3 className="text-xs text-zinc-400 uppercase tracking-wider font-semibold mb-3">
@@ -211,7 +198,6 @@ export default function SessionPage() {
         </div>
       </div>
 
-      {/* Circuit Breaker Modal (50%) */}
       {showModal && !showLockout && (
         <CircuitBreakerModal
           sessionId={id}
@@ -222,7 +208,6 @@ export default function SessionPage() {
         />
       )}
 
-      {/* Lockout Screen (80%) */}
       {showLockout && (
         <LockoutScreen sessionId={id} onSessionEnded={handleLockoutEnded} />
       )}

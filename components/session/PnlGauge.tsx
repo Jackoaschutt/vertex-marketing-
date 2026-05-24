@@ -54,7 +54,7 @@ export default function PnlGauge({ pnl, dllAmount }: Props) {
       ? 'bg-red-600'
       : absPct >= 50
       ? 'bg-amber-500'
-      : 'bg-green-500'
+      : 'bg-emerald-500'
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -64,7 +64,7 @@ export default function PnlGauge({ pnl, dllAmount }: Props) {
         <path
           d={bgPath}
           fill="none"
-          stroke="#3f3f46"
+          stroke="#27272a"
           strokeWidth={14}
           strokeLinecap="round"
         />
@@ -95,7 +95,7 @@ export default function PnlGauge({ pnl, dllAmount }: Props) {
           y={CY + 26}
           textAnchor="middle"
           fontSize="9"
-          fill="#71717a"
+          fill="#64748b"
           fontFamily="sans-serif"
         >
           Session P&amp;L

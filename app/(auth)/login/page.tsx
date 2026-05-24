@@ -31,7 +31,8 @@ export default function LoginPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-bold text-white mb-6">Welcome back</h1>
+      <h1 className="text-2xl font-bold text-white mb-1">Welcome back</h1>
+      <p className="text-zinc-500 text-sm mb-6">Sign in to your PropGuard account</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -46,7 +47,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition"
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition"
           />
         </div>
 
@@ -62,7 +63,7 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition"
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition"
           />
         </div>
 
@@ -75,7 +76,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-lg px-4 py-2.5 transition"
+          className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-lg px-4 py-2.5 transition"
         >
           {loading ? (
             <>
@@ -93,7 +94,7 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center text-sm text-zinc-500">
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="text-sky-400 hover:text-sky-300 font-medium transition">
+        <Link href="/signup" className="text-teal-400 hover:text-teal-300 font-medium transition">
           Create one
         </Link>
       </p>

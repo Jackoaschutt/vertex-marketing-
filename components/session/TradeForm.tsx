@@ -84,7 +84,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
     return (
       <button
         onClick={() => setExpanded(true)}
-        className="w-full py-3 rounded-xl border-2 border-dashed border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200 transition-colors text-sm font-medium"
+        className="w-full py-3 rounded-xl border-2 border-dashed border-zinc-700 text-zinc-400 hover:border-teal-600/50 hover:text-zinc-200 hover:bg-teal-950/10 transition-all text-sm font-medium"
       >
         + Log Trade
       </button>
@@ -94,7 +94,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-zinc-800 rounded-xl p-4 flex flex-col gap-4"
+      className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-4"
     >
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-white">Log Trade</h3>
@@ -115,7 +115,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
           value={form.instrument}
           onChange={(e) => set('instrument', e.target.value)}
           placeholder="NQ, ES, CL..."
-          className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-600 placeholder:text-zinc-600"
+          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 placeholder:text-zinc-600"
         />
       </div>
 
@@ -131,9 +131,9 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
               className={`flex-1 py-2 rounded-lg text-sm font-semibold capitalize transition-colors border ${
                 form.direction === dir
                   ? dir === 'long'
-                    ? 'bg-green-700 border-green-600 text-white'
+                    ? 'bg-emerald-700 border-emerald-600 text-white'
                     : 'bg-red-700 border-red-600 text-white'
-                  : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
               }`}
             >
               {dir === 'long' ? 'Long' : 'Short'}
@@ -154,11 +154,11 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
               className={`flex-1 py-2 rounded-lg text-sm font-semibold capitalize transition-colors border ${
                 form.result === r
                   ? r === 'win'
-                    ? 'bg-green-700 border-green-600 text-white'
+                    ? 'bg-emerald-700 border-emerald-600 text-white'
                     : r === 'loss'
                     ? 'bg-red-700 border-red-600 text-white'
                     : 'bg-zinc-600 border-zinc-500 text-white'
-                  : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
               }`}
             >
               {r === 'breakeven' ? 'BE' : r}
@@ -176,7 +176,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
           value={form.pnl}
           onChange={(e) => set('pnl', e.target.value)}
           placeholder="-250 for a loss, 350 for a win"
-          className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-600 placeholder:text-zinc-600"
+          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 placeholder:text-zinc-600"
         />
       </div>
 
@@ -187,7 +187,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
           <select
             value={form.setup_type_id}
             onChange={(e) => set('setup_type_id', e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-600"
+            className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
           >
             <option value="">None</option>
             {setupTypes.map((s) => (
@@ -210,8 +210,8 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
               onClick={() => set('confluence_count', n)}
               className={`w-9 h-9 rounded-lg text-sm font-semibold transition-colors border ${
                 form.confluence_count === n
-                  ? 'bg-sky-700 border-sky-600 text-white'
-                  : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                  ? 'bg-teal-700 border-teal-600 text-white'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
               }`}
             >
               {n}
@@ -231,8 +231,8 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
               onClick={() => set('emotional_state', form.emotional_state === state ? '' : state)}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
                 form.emotional_state === state
-                  ? 'bg-sky-700 border-sky-600 text-white'
-                  : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                  ? 'bg-teal-700 border-teal-600 text-white'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
               }`}
             >
               {state}
@@ -246,7 +246,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
         <button
           type="button"
           onClick={() => setShowStory(true)}
-          className="text-xs text-sky-400 hover:text-sky-300 text-left underline"
+          className="text-xs text-teal-400 hover:text-teal-300 text-left underline"
         >
           + Add trade story
         </button>
@@ -258,7 +258,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
             onChange={(e) => set('trade_story', e.target.value)}
             placeholder="What happened? What were you thinking?"
             rows={3}
-            className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-600 placeholder:text-zinc-600 resize-none"
+            className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 placeholder:text-zinc-600 resize-none"
           />
         </div>
       )}
@@ -268,7 +268,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
       <button
         type="submit"
         disabled={!canSubmit || loading}
-        className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-600 hover:bg-sky-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-2.5 rounded-lg text-sm font-semibold bg-teal-600 hover:bg-teal-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Logging...' : 'Log Trade'}
       </button>

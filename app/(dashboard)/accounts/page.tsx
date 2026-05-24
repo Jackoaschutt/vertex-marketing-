@@ -35,20 +35,20 @@ const STATUS_CONFIG: Record<
 > = {
   active: {
     label: 'Active',
-    borderColor: 'border-sky-500',
-    badgeClass: 'bg-sky-950 text-sky-400 border border-sky-800',
-    countBadgeClass: 'bg-sky-950 text-sky-400',
+    borderColor: 'border-teal-500',
+    badgeClass: 'bg-teal-950 text-teal-300 border border-teal-800/40',
+    countBadgeClass: 'bg-teal-950 text-teal-400',
   },
   passed: {
     label: 'Passed',
-    borderColor: 'border-green-500',
-    badgeClass: 'bg-green-950 text-green-400 border border-green-800',
-    countBadgeClass: 'bg-green-950 text-green-400',
+    borderColor: 'border-emerald-500',
+    badgeClass: 'bg-emerald-950 text-emerald-400 border border-emerald-800/40',
+    countBadgeClass: 'bg-emerald-950 text-emerald-400',
   },
   failed: {
     label: 'Failed',
     borderColor: 'border-red-500',
-    badgeClass: 'bg-red-950 text-red-400 border border-red-800',
+    badgeClass: 'bg-red-950 text-red-400 border border-red-800/40',
     countBadgeClass: 'bg-red-950 text-red-400',
   },
 }
@@ -63,9 +63,8 @@ function AccountCard({ account }: { account: PropAccount }) {
 
   return (
     <div
-      className={`bg-zinc-800 rounded-xl p-5 border-l-4 ${cfg.borderColor}`}
+      className={`bg-zinc-900 border border-zinc-800 rounded-xl p-5 border-l-4 ${cfg.borderColor} hover:border-zinc-700 transition-colors`}
     >
-      {/* Top row */}
       <div className="flex items-center justify-between mb-1">
         <span className="font-semibold text-lg text-white">{account.nickname}</span>
         <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.badgeClass}`}>
@@ -73,12 +72,10 @@ function AccountCard({ account }: { account: PropAccount }) {
         </span>
       </div>
 
-      {/* Firm name */}
       {firm && (
         <p className="text-zinc-400 text-sm mb-3">{firm.name}</p>
       )}
 
-      {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <div>
           <p className="text-xs text-zinc-500 mb-0.5">Starting Balance</p>
@@ -90,7 +87,7 @@ function AccountCard({ account }: { account: PropAccount }) {
           <p className="text-xs text-zinc-500 mb-0.5">Current Balance</p>
           <p
             className={`text-sm font-medium ${
-              balanceUp ? 'text-green-400' : 'text-red-400'
+              balanceUp ? 'text-emerald-400' : 'text-red-400'
             }`}
           >
             {formatCurrency(account.current_balance)}
@@ -110,14 +107,13 @@ function AccountCard({ account }: { account: PropAccount }) {
         </div>
       </div>
 
-      {/* Bottom row */}
       <div className="flex items-center justify-between">
         <span className="text-xs text-zinc-500">
           Created {formatDate(account.created_at)}
         </span>
         <Link
           href="/analytics"
-          className="text-xs text-sky-400 hover:text-sky-300 transition-colors font-medium"
+          className="text-xs text-teal-400 hover:text-teal-300 transition-colors font-medium"
         >
           View Sessions →
         </Link>
@@ -187,8 +183,7 @@ export default async function AccountsPage() {
   const failed = allAccounts.filter((a) => a.status === 'failed')
 
   return (
-    <div className="min-h-screen bg-zinc-950">
-      {/* Header */}
+    <div>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Prop Accounts</h1>
@@ -198,13 +193,12 @@ export default async function AccountsPage() {
         </div>
         <Link
           href="/dashboard"
-          className="px-4 py-2 rounded-lg text-sm font-medium bg-sky-600 hover:bg-sky-500 text-white transition-colors"
+          className="px-4 py-2 rounded-lg text-sm font-semibold bg-teal-600 hover:bg-teal-500 text-white transition-colors"
         >
           + Add Account
         </Link>
       </div>
 
-      {/* Sections */}
       <AccountSection status="active" accounts={active} />
       <AccountSection status="passed" accounts={passed} />
       <AccountSection status="failed" accounts={failed} />

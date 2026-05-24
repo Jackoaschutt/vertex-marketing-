@@ -29,7 +29,6 @@ export default function DebriefPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Debrief form state
   const [followedRules, setFollowedRules] = useState<FollowedRules | null>(null)
   const [emotionalRating, setEmotionalRating] = useState<number | null>(null)
   const [notes, setNotes] = useState('')
@@ -52,7 +51,7 @@ export default function DebriefPage() {
     followedRules !== null && emotionalRating !== null && willTradeTomorrow !== null
 
   const totalPnl = trades.reduce((sum, t) => sum + t.pnl, 0)
-  const pnlColor = totalPnl >= 0 ? 'text-green-400' : 'text-red-400'
+  const pnlColor = totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -91,7 +90,7 @@ export default function DebriefPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-zinc-400 animate-pulse text-sm">Loading session...</div>
+        <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -106,8 +105,8 @@ export default function DebriefPage() {
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
-      {/* Page heading */}
       <div className="mb-8">
+        <p className="text-teal-400 text-xs font-bold uppercase tracking-widest mb-1">Post-Session</p>
         <h1 className="text-2xl font-bold text-white">Session Debrief</h1>
         <p className="text-zinc-400 text-sm mt-1">
           Take a moment to reflect on your trading session.
@@ -139,11 +138,11 @@ export default function DebriefPage() {
       </div>
 
       {/* Debrief form */}
-      <form onSubmit={handleSubmit} className="flex flex-col gap-7">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {/* Q1: Rules */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
           <label className="block text-sm font-semibold text-zinc-200 mb-4">
-            <span className="text-sky-500 font-bold mr-2">1.</span>
+            <span className="text-teal-400 font-bold mr-2">1.</span>
             Did you follow your rules today?
           </label>
           <div className="flex gap-3">
@@ -155,7 +154,7 @@ export default function DebriefPage() {
                 className={`flex-1 py-2.5 rounded-xl text-sm font-semibold capitalize transition-all border ${
                   followedRules === v
                     ? v === 'yes'
-                      ? 'bg-green-700 border-green-500 text-white'
+                      ? 'bg-emerald-700 border-emerald-500 text-white'
                       : v === 'mostly'
                       ? 'bg-amber-700 border-amber-500 text-white'
                       : 'bg-red-800 border-red-600 text-white'
@@ -171,7 +170,7 @@ export default function DebriefPage() {
         {/* Q2: Emotional control rating */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
           <label className="block text-sm font-semibold text-zinc-200 mb-4">
-            <span className="text-sky-500 font-bold mr-2">2.</span>
+            <span className="text-teal-400 font-bold mr-2">2.</span>
             Rate your emotional control (1–10)
           </label>
           <div className="flex flex-wrap gap-2">
@@ -183,7 +182,7 @@ export default function DebriefPage() {
                 className={`w-10 h-10 rounded-lg text-sm font-bold transition-all border ${
                   emotionalRating === n
                     ? n >= 7
-                      ? 'bg-green-700 border-green-500 text-white'
+                      ? 'bg-emerald-700 border-emerald-500 text-white'
                       : n >= 4
                       ? 'bg-amber-700 border-amber-500 text-white'
                       : 'bg-red-800 border-red-600 text-white'
@@ -208,7 +207,7 @@ export default function DebriefPage() {
         {/* Q3: Notes */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
           <label className="block text-sm font-semibold text-zinc-200 mb-3">
-            <span className="text-sky-500 font-bold mr-2">3.</span>
+            <span className="text-teal-400 font-bold mr-2">3.</span>
             Session notes{' '}
             <span className="text-zinc-500 font-normal">(optional)</span>
           </label>
@@ -217,14 +216,14 @@ export default function DebriefPage() {
             onChange={(e) => setNotes(e.target.value)}
             placeholder="What went well? What do you want to do differently next session?"
             rows={4}
-            className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-600 placeholder:text-zinc-600 resize-none"
+            className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 placeholder:text-zinc-600 resize-none"
           />
         </div>
 
         {/* Q4: Will trade tomorrow */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
           <label className="block text-sm font-semibold text-zinc-200 mb-4">
-            <span className="text-sky-500 font-bold mr-2">4.</span>
+            <span className="text-teal-400 font-bold mr-2">4.</span>
             Will you trade tomorrow?
           </label>
           <div className="flex gap-3">
@@ -233,7 +232,7 @@ export default function DebriefPage() {
               onClick={() => setWillTradeTomorrow(true)}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
                 willTradeTomorrow === true
-                  ? 'bg-green-700 border-green-500 text-white'
+                  ? 'bg-emerald-700 border-emerald-500 text-white'
                   : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-500'
               }`}
             >
@@ -262,7 +261,7 @@ export default function DebriefPage() {
         <button
           type="submit"
           disabled={!canSubmit || submitting}
-          className="w-full py-4 rounded-xl font-semibold bg-sky-600 hover:bg-sky-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-full py-4 rounded-xl font-semibold bg-teal-600 hover:bg-teal-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {submitting ? 'Saving...' : 'Save Debrief & End Session'}
         </button>

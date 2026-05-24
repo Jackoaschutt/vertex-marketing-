@@ -43,24 +43,21 @@ export default function SessionHeader({ session, account, onEndSession }: Props)
 
   return (
     <div className="bg-zinc-950 border-b border-zinc-800 px-6 py-3 flex items-center justify-between">
-      {/* Left: account info */}
       <div className="flex flex-col">
         <span className="text-sm font-semibold text-white">{account.nickname}</span>
         <span className="text-xs text-zinc-400">{account.prop_firm_rules?.name ?? 'Custom Rules'}</span>
       </div>
 
-      {/* Center: session badge + timer */}
       <div className="flex items-center gap-3">
-        <span className="px-2.5 py-1 rounded-full text-xs font-bold tracking-widest bg-sky-900/60 text-sky-300 border border-sky-700/40">
+        <span className="px-2.5 py-1 rounded-full text-xs font-bold tracking-widest bg-teal-950/70 text-teal-300 border border-teal-700/40">
           {sessionLabel}
         </span>
         <span className="font-mono text-lg text-white tabular-nums">{formatElapsed(elapsed)}</span>
       </div>
 
-      {/* Right: End session button */}
       <button
         onClick={onEndSession}
-        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-900 text-red-400 hover:bg-red-800 transition-colors border border-red-800/50"
+        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-900/60 text-red-400 hover:bg-red-800/80 transition-colors border border-red-800/50"
       >
         End Session
       </button>

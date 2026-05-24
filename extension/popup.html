@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { width: 280px; padding: 16px; background: #09090b; color: #fff; font-family: system-ui; margin: 0; }
+    .logo { color: #38bdf8; font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+    .status { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #a1a1aa; margin-bottom: 12px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+    .pnl-card { background: #18181b; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+    .pnl-label { font-size: 11px; color: #71717a; margin-bottom: 4px; }
+    .pnl-value { font-size: 24px; font-weight: 700; font-family: monospace; }
+    .positive { color: #22c55e; }
+    .negative { color: #ef4444; }
+    .neutral { color: #a1a1aa; }
+    .link { color: #38bdf8; font-size: 12px; text-decoration: none; }
+    .link:hover { text-decoration: underline; }
+    .time { font-size: 11px; color: #52525b; }
+  </style>
+</head>
+<body>
+  <div class="logo">🛡 PropGuard</div>
+  <div class="status">
+    <div class="dot" id="dot"></div>
+    <span id="status-text">Active on Tradovate</span>
+  </div>
+  <div class="pnl-card">
+    <div class="pnl-label">Current Session P&L</div>
+    <div class="pnl-value neutral" id="pnl">—</div>
+    <div class="time" id="last-updated"></div>
+  </div>
+  <a href="https://propguard-topaz.vercel.app/dashboard" target="_blank" class="link">Open PropGuard →</a>
+  <script src="popup.js"></script>
+</body>
+</html>

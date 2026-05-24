@@ -32,11 +32,11 @@ export default function LoginPage() {
   return (
     <>
       <h1 className="text-2xl font-bold text-white mb-1">Welcome back</h1>
-      <p className="text-slate-500 text-sm mb-6">Sign in to your PropGuard account</p>
+      <p className="text-zinc-500 text-sm mb-6">Sign in to your PropGuard account</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-slate-400 mb-1.5">
+          <label htmlFor="email" className="block text-sm font-medium text-zinc-400 mb-1.5">
             Email
           </label>
           <input
@@ -47,12 +47,12 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition"
           />
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-slate-400 mb-1.5">
+          <label htmlFor="password" className="block text-sm font-medium text-zinc-400 mb-1.5">
             Password
           </label>
           <input
@@ -63,7 +63,7 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition"
           />
         </div>
 
@@ -76,7 +76,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-lg px-4 py-2.5 transition"
+          className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-lg px-4 py-2.5 transition"
         >
           {loading ? (
             <>
@@ -92,9 +92,9 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-500">
+      <p className="mt-6 text-center text-sm text-zinc-500">
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="text-violet-400 hover:text-violet-300 font-medium transition">
+        <Link href="/signup" className="text-teal-400 hover:text-teal-300 font-medium transition">
           Create one
         </Link>
       </p>

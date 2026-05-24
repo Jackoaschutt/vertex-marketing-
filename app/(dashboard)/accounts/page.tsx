@@ -35,9 +35,9 @@ const STATUS_CONFIG: Record<
 > = {
   active: {
     label: 'Active',
-    borderColor: 'border-violet-500',
-    badgeClass: 'bg-violet-950 text-violet-300 border border-violet-800/40',
-    countBadgeClass: 'bg-violet-950 text-violet-400',
+    borderColor: 'border-teal-500',
+    badgeClass: 'bg-teal-950 text-teal-300 border border-teal-800/40',
+    countBadgeClass: 'bg-teal-950 text-teal-400',
   },
   passed: {
     label: 'Passed',
@@ -63,7 +63,7 @@ function AccountCard({ account }: { account: PropAccount }) {
 
   return (
     <div
-      className={`bg-slate-900 border border-slate-800 rounded-xl p-5 border-l-4 ${cfg.borderColor} hover:border-slate-700 transition-colors`}
+      className={`bg-zinc-900 border border-zinc-800 rounded-xl p-5 border-l-4 ${cfg.borderColor} hover:border-zinc-700 transition-colors`}
     >
       <div className="flex items-center justify-between mb-1">
         <span className="font-semibold text-lg text-white">{account.nickname}</span>
@@ -73,18 +73,18 @@ function AccountCard({ account }: { account: PropAccount }) {
       </div>
 
       {firm && (
-        <p className="text-slate-400 text-sm mb-3">{firm.name}</p>
+        <p className="text-zinc-400 text-sm mb-3">{firm.name}</p>
       )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <div>
-          <p className="text-xs text-slate-500 mb-0.5">Starting Balance</p>
+          <p className="text-xs text-zinc-500 mb-0.5">Starting Balance</p>
           <p className="text-sm font-medium text-white">
             {formatCurrency(account.starting_balance)}
           </p>
         </div>
         <div>
-          <p className="text-xs text-slate-500 mb-0.5">Current Balance</p>
+          <p className="text-xs text-zinc-500 mb-0.5">Current Balance</p>
           <p
             className={`text-sm font-medium ${
               balanceUp ? 'text-emerald-400' : 'text-red-400'
@@ -94,13 +94,13 @@ function AccountCard({ account }: { account: PropAccount }) {
           </p>
         </div>
         <div>
-          <p className="text-xs text-slate-500 mb-0.5">DLL</p>
+          <p className="text-xs text-zinc-500 mb-0.5">DLL</p>
           <p className="text-sm font-medium text-white">
             {firm ? formatCurrency(firm.dll_amount) + '/day' : '—'}
           </p>
         </div>
         <div>
-          <p className="text-xs text-slate-500 mb-0.5">Profit Target</p>
+          <p className="text-xs text-zinc-500 mb-0.5">Profit Target</p>
           <p className="text-sm font-medium text-white">
             {firm ? formatCurrency(firm.profit_target) : '—'}
           </p>
@@ -108,12 +108,12 @@ function AccountCard({ account }: { account: PropAccount }) {
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-zinc-500">
           Created {formatDate(account.created_at)}
         </span>
         <Link
           href="/analytics"
-          className="text-xs text-violet-400 hover:text-violet-300 transition-colors font-medium"
+          className="text-xs text-teal-400 hover:text-teal-300 transition-colors font-medium"
         >
           View Sessions →
         </Link>
@@ -145,7 +145,7 @@ function AccountSection({
       </div>
 
       {accounts.length === 0 ? (
-        <p className="text-sm text-slate-500">No {cfg.label.toLowerCase()} accounts.</p>
+        <p className="text-sm text-zinc-500">No {cfg.label.toLowerCase()} accounts.</p>
       ) : (
         <div className="space-y-3">
           {accounts.map((account) => (
@@ -187,13 +187,13 @@ export default async function AccountsPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Prop Accounts</h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-zinc-500 text-sm mt-1">
             {allAccounts.length} account{allAccounts.length !== 1 ? 's' : ''} total
           </p>
         </div>
         <Link
           href="/dashboard"
-          className="px-4 py-2 rounded-lg text-sm font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors"
+          className="px-4 py-2 rounded-lg text-sm font-semibold bg-teal-600 hover:bg-teal-500 text-white transition-colors"
         >
           + Add Account
         </Link>

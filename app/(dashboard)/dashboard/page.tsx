@@ -31,11 +31,11 @@ function formatDate(iso: string) {
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
-    active: 'bg-violet-950 text-violet-300 border border-violet-800/40',
+    active: 'bg-teal-950 text-teal-300 border border-teal-800/40',
     passed: 'bg-green-950 text-green-400 border border-green-800/40',
     failed: 'bg-red-950 text-red-400 border border-red-800/40',
   }
-  return `inline-block px-2 py-0.5 rounded-full text-xs font-medium ${map[status] ?? 'bg-slate-800 text-slate-400'}`
+  return `inline-block px-2 py-0.5 rounded-full text-xs font-medium ${map[status] ?? 'bg-zinc-800 text-zinc-400'}`
 }
 
 function dllBarColor(pct: number) {
@@ -117,7 +117,7 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-bold text-white">
             {greeting()}, {user.email?.split('@')[0]}
           </h1>
-          <p className="text-sm text-slate-500 mt-0.5">{user.email}</p>
+          <p className="text-sm text-zinc-500 mt-0.5">{user.email}</p>
         </div>
         <AddAccountButton
           firmOptions={(firmRules ?? []) as PropFirmRule[]}
@@ -127,8 +127,8 @@ export default async function DashboardPage() {
 
       {/* ── Week Stats ── */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <p className="text-xs text-slate-500 mb-1 uppercase tracking-wider font-medium">Week P&amp;L</p>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <p className="text-xs text-zinc-500 mb-1 uppercase tracking-wider font-medium">Week P&amp;L</p>
           <p
             className={`text-2xl font-bold font-mono tabular-nums ${
               weekPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
@@ -138,15 +138,15 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <p className="text-xs text-slate-500 mb-1 uppercase tracking-wider font-medium">Sessions This Week</p>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <p className="text-xs text-zinc-500 mb-1 uppercase tracking-wider font-medium">Sessions This Week</p>
           <p className="text-2xl font-bold text-white font-mono tabular-nums">
             {(recentSessions ?? []).length}
           </p>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <p className="text-xs text-slate-500 mb-1 uppercase tracking-wider font-medium">Win Rate This Week</p>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <p className="text-xs text-zinc-500 mb-1 uppercase tracking-wider font-medium">Win Rate This Week</p>
           <p className={`text-2xl font-bold font-mono tabular-nums ${
             winRate === null ? 'text-white' : winRate >= 50 ? 'text-emerald-400' : 'text-red-400'
           }`}>
@@ -158,7 +158,7 @@ export default async function DashboardPage() {
       {/* ── Prop Account Cards ── */}
       {(accounts ?? []).length > 0 ? (
         <section>
-          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+          <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
             Accounts
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -175,7 +175,7 @@ export default async function DashboardPage() {
                   : 0
 
               return (
-                <div key={account.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 hover:border-slate-700 transition-colors">
+                <div key={account.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4 hover:border-zinc-700 transition-colors">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-white">{account.nickname}</span>
                     <span className={statusBadge(account.status)}>
@@ -183,7 +183,7 @@ export default async function DashboardPage() {
                     </span>
                   </div>
 
-                  <div className="text-sm text-slate-400">
+                  <div className="text-sm text-zinc-400">
                     {rules?.name ?? 'Custom'} &middot;{' '}
                     {account.starting_balance.toLocaleString('en-US', {
                       style: 'currency',
@@ -195,7 +195,7 @@ export default async function DashboardPage() {
                   {dllAmount > 0 && (
                     <div className="space-y-1.5">
                       <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">Daily Loss Limit</span>
+                        <span className="text-zinc-500">Daily Loss Limit</span>
                         <span
                           className={
                             dllPct >= 80
@@ -208,7 +208,7 @@ export default async function DashboardPage() {
                           {dllPct}% used
                         </span>
                       </div>
-                      <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                      <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${dllBarColor(dllPct)}`}
                           style={{ width: `${dllPct}%` }}
@@ -220,7 +220,7 @@ export default async function DashboardPage() {
                   {account.status === 'active' ? (
                     <Link
                       href={`/session/new?account=${account.id}`}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white transition-colors"
                     >
                       <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                         <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none" />
@@ -228,7 +228,7 @@ export default async function DashboardPage() {
                       Start Session
                     </Link>
                   ) : (
-                    <p className="text-xs text-slate-500 italic capitalize">
+                    <p className="text-xs text-zinc-500 italic capitalize">
                       Account {account.status}
                     </p>
                   )}
@@ -238,8 +238,8 @@ export default async function DashboardPage() {
           </div>
         </section>
       ) : (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
-          <p className="text-slate-400 text-sm">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center">
+          <p className="text-zinc-400 text-sm">
             No accounts yet —{' '}
             <AddAccountButton
               firmOptions={(firmRules ?? []) as PropFirmRule[]}
@@ -251,42 +251,42 @@ export default async function DashboardPage() {
 
       {/* ── Recent Sessions ── */}
       <section>
-        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+        <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
           Recent Sessions
         </h2>
 
         {(recentSessions ?? []).length === 0 ? (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
-            <p className="text-slate-400 text-sm">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center">
+            <p className="text-zinc-400 text-sm">
               No sessions yet — start your first session above
             </p>
           </div>
         ) : (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-800">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <tr className="border-b border-zinc-800">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     Date
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     Account
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     P&amp;L
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     Trades
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     CB Events
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     Status
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody className="divide-y divide-zinc-800">
                 {(recentSessions as Session[]).map((session) => {
                   const sessionPnl = trades
                     .filter((t) => t.session_id === session.id)
@@ -301,17 +301,17 @@ export default async function DashboardPage() {
                   return (
                     <tr
                       key={session.id}
-                      className="hover:bg-slate-800/50 transition-colors"
+                      className="hover:bg-zinc-800/50 transition-colors"
                     >
-                      <td className="px-4 py-3 text-slate-300 whitespace-nowrap">
+                      <td className="px-4 py-3 text-zinc-300 whitespace-nowrap">
                         <Link
                           href={`/session/${session.id}`}
-                          className="hover:text-violet-400 transition-colors"
+                          className="hover:text-teal-400 transition-colors"
                         >
                           {formatDate(session.start_time)}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-slate-300">
+                      <td className="px-4 py-3 text-zinc-300">
                         {acct?.nickname ?? '—'}
                       </td>
                       <td
@@ -321,10 +321,10 @@ export default async function DashboardPage() {
                       >
                         {sessionTrades > 0 ? formatPnl(sessionPnl) : '—'}
                       </td>
-                      <td className="px-4 py-3 text-right text-slate-300 font-mono tabular-nums">
+                      <td className="px-4 py-3 text-right text-zinc-300 font-mono tabular-nums">
                         {sessionTrades > 0 ? sessionTrades : '—'}
                       </td>
-                      <td className="px-4 py-3 text-right text-slate-400">—</td>
+                      <td className="px-4 py-3 text-right text-zinc-400">—</td>
                       <td className="px-4 py-3">
                         <span className={statusBadge(session.status)}>
                           {session.status}

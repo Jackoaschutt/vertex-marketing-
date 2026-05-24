@@ -69,7 +69,7 @@ export default function CircuitBreakerModal({
 
   return (
     <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/90 backdrop-blur-sm">
-      <div className="w-full max-w-lg mx-4 bg-slate-900 border border-amber-600/70 rounded-2xl p-8 shadow-2xl flex flex-col gap-6">
+      <div className="w-full max-w-lg mx-4 bg-zinc-900 border border-amber-600/70 rounded-2xl p-8 shadow-2xl flex flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
           <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-1">
             <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#f59e0b" strokeWidth="2">
@@ -84,16 +84,16 @@ export default function CircuitBreakerModal({
             <span className="text-red-400 font-mono font-bold text-xl">
               -${Math.abs(pnl).toFixed(2)}
             </span>
-            <span className="text-slate-500">/ DLL</span>
-            <span className="text-slate-300 font-mono">${dllAmount.toFixed(2)}</span>
+            <span className="text-zinc-500">/ DLL</span>
+            <span className="text-zinc-300 font-mono">${dllAmount.toFixed(2)}</span>
             <span className="text-amber-500 font-semibold">({lossPct}%)</span>
           </div>
         </div>
 
-        <div className="h-px bg-slate-800" />
+        <div className="h-px bg-zinc-800" />
 
         <div className="flex flex-col gap-5">
-          <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">
+          <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">
             You must answer all 3 questions to continue
           </p>
 
@@ -128,7 +128,7 @@ export default function CircuitBreakerModal({
           <button
             onClick={handleEndSession}
             disabled={loading}
-            className="w-full py-3 rounded-xl font-semibold text-sm border border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200 transition-colors disabled:opacity-40"
+            className="w-full py-3 rounded-xl font-semibold text-sm border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200 transition-colors disabled:opacity-40"
           >
             End Session Now
           </button>
@@ -152,7 +152,7 @@ function Question({
   const filled = value.trim().length >= 3
   return (
     <div>
-      <label className="block text-sm text-slate-200 mb-2">
+      <label className="block text-sm text-zinc-200 mb-2">
         <span className="text-amber-500 font-bold mr-1">{number}.</span>
         {label}
       </label>
@@ -161,12 +161,12 @@ function Question({
         onChange={(e) => onChange(e.target.value)}
         rows={2}
         placeholder="Write your answer here..."
-        className={`w-full bg-slate-800 border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-slate-600 resize-none transition-colors ${
-          filled ? 'border-amber-600/60' : 'border-slate-700'
+        className={`w-full bg-zinc-800 border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-zinc-600 resize-none transition-colors ${
+          filled ? 'border-amber-600/60' : 'border-zinc-700'
         }`}
       />
       {value.length > 0 && !filled && (
-        <p className="text-[10px] text-slate-500 mt-1">At least 3 characters required</p>
+        <p className="text-[10px] text-zinc-500 mt-1">At least 3 characters required</p>
       )}
     </div>
   )

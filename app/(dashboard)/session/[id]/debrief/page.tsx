@@ -90,7 +90,7 @@ export default function DebriefPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -98,7 +98,7 @@ export default function DebriefPage() {
   if (!session) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-slate-400 text-sm">Session not found.</div>
+        <div className="text-zinc-400 text-sm">Session not found.</div>
       </div>
     )
   }
@@ -106,16 +106,16 @@ export default function DebriefPage() {
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
       <div className="mb-8">
-        <p className="text-violet-400 text-xs font-bold uppercase tracking-widest mb-1">Post-Session</p>
+        <p className="text-teal-400 text-xs font-bold uppercase tracking-widest mb-1">Post-Session</p>
         <h1 className="text-2xl font-bold text-white">Session Debrief</h1>
-        <p className="text-slate-400 text-sm mt-1">
+        <p className="text-zinc-400 text-sm mt-1">
           Take a moment to reflect on your trading session.
         </p>
       </div>
 
       {/* Session summary */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-8">
-        <h2 className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-4">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8">
+        <h2 className="text-xs text-zinc-400 uppercase tracking-wider font-semibold mb-4">
           Session Summary
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -140,9 +140,9 @@ export default function DebriefPage() {
       {/* Debrief form */}
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {/* Q1: Rules */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <label className="block text-sm font-semibold text-slate-200 mb-4">
-            <span className="text-violet-400 font-bold mr-2">1.</span>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+          <label className="block text-sm font-semibold text-zinc-200 mb-4">
+            <span className="text-teal-400 font-bold mr-2">1.</span>
             Did you follow your rules today?
           </label>
           <div className="flex gap-3">
@@ -158,7 +158,7 @@ export default function DebriefPage() {
                       : v === 'mostly'
                       ? 'bg-amber-700 border-amber-500 text-white'
                       : 'bg-red-800 border-red-600 text-white'
-                    : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500'
+                    : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-500'
                 }`}
               >
                 {v}
@@ -168,9 +168,9 @@ export default function DebriefPage() {
         </div>
 
         {/* Q2: Emotional control rating */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <label className="block text-sm font-semibold text-slate-200 mb-4">
-            <span className="text-violet-400 font-bold mr-2">2.</span>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+          <label className="block text-sm font-semibold text-zinc-200 mb-4">
+            <span className="text-teal-400 font-bold mr-2">2.</span>
             Rate your emotional control (1–10)
           </label>
           <div className="flex flex-wrap gap-2">
@@ -186,7 +186,7 @@ export default function DebriefPage() {
                       : n >= 4
                       ? 'bg-amber-700 border-amber-500 text-white'
                       : 'bg-red-800 border-red-600 text-white'
-                    : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500'
+                    : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-500'
                 }`}
               >
                 {n}
@@ -194,7 +194,7 @@ export default function DebriefPage() {
             ))}
           </div>
           {emotionalRating !== null && (
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-zinc-500 mt-2">
               {emotionalRating >= 8
                 ? 'Excellent emotional discipline'
                 : emotionalRating >= 5
@@ -205,25 +205,25 @@ export default function DebriefPage() {
         </div>
 
         {/* Q3: Notes */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <label className="block text-sm font-semibold text-slate-200 mb-3">
-            <span className="text-violet-400 font-bold mr-2">3.</span>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+          <label className="block text-sm font-semibold text-zinc-200 mb-3">
+            <span className="text-teal-400 font-bold mr-2">3.</span>
             Session notes{' '}
-            <span className="text-slate-500 font-normal">(optional)</span>
+            <span className="text-zinc-500 font-normal">(optional)</span>
           </label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="What went well? What do you want to do differently next session?"
             rows={4}
-            className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600 placeholder:text-slate-600 resize-none"
+            className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 placeholder:text-zinc-600 resize-none"
           />
         </div>
 
         {/* Q4: Will trade tomorrow */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <label className="block text-sm font-semibold text-slate-200 mb-4">
-            <span className="text-violet-400 font-bold mr-2">4.</span>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+          <label className="block text-sm font-semibold text-zinc-200 mb-4">
+            <span className="text-teal-400 font-bold mr-2">4.</span>
             Will you trade tomorrow?
           </label>
           <div className="flex gap-3">
@@ -233,7 +233,7 @@ export default function DebriefPage() {
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
                 willTradeTomorrow === true
                   ? 'bg-emerald-700 border-emerald-500 text-white'
-                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-500'
               }`}
             >
               Yes
@@ -243,8 +243,8 @@ export default function DebriefPage() {
               onClick={() => setWillTradeTomorrow(false)}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
                 willTradeTomorrow === false
-                  ? 'bg-slate-600 border-slate-500 text-white'
-                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500'
+                  ? 'bg-zinc-600 border-zinc-500 text-white'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-500'
               }`}
             >
               No
@@ -261,7 +261,7 @@ export default function DebriefPage() {
         <button
           type="submit"
           disabled={!canSubmit || submitting}
-          className="w-full py-4 rounded-xl font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-full py-4 rounded-xl font-semibold bg-teal-600 hover:bg-teal-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {submitting ? 'Saving...' : 'Save Debrief & End Session'}
         </button>
@@ -281,7 +281,7 @@ function SummaryCard({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs text-slate-500 uppercase tracking-wider">{label}</span>
+      <span className="text-xs text-zinc-500 uppercase tracking-wider">{label}</span>
       <span className={`text-xl font-bold font-mono tabular-nums ${valueClass ?? 'text-white'}`}>
         {value}
       </span>

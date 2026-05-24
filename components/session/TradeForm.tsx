@@ -12,6 +12,18 @@ interface Props {
 const EMOTIONAL_STATES = ['Calm', 'Focused', 'Anxious', 'Frustrated', 'Euphoric', 'Greedy']
 const CONFLUENCE_OPTIONS = [0, 1, 2, 3, 4, 5]
 
+const MISTAKE_TAGS = [
+  { label: 'FOMO', color: 'bg-orange-500/15 border-orange-500/30 text-orange-400' },
+  { label: 'Revenge Trade', color: 'bg-red-500/15 border-red-500/30 text-red-400' },
+  { label: 'Oversized Position', color: 'bg-rose-500/15 border-rose-500/30 text-rose-400' },
+  { label: 'Early Entry', color: 'bg-amber-500/15 border-amber-500/30 text-amber-400' },
+  { label: 'Late Exit', color: 'bg-yellow-500/15 border-yellow-500/30 text-yellow-400' },
+  { label: 'No Stop Loss', color: 'bg-red-600/15 border-red-600/30 text-red-300' },
+  { label: 'Moving Stop', color: 'bg-violet-500/15 border-violet-500/30 text-violet-400' },
+  { label: 'Overtrading', color: 'bg-pink-500/15 border-pink-500/30 text-pink-400' },
+  { label: 'Ignored CB', color: 'bg-slate-500/15 border-slate-500/30 text-slate-400' },
+]
+
 const initialForm = {
   instrument: '',
   direction: '' as TradeDirection | '',
@@ -21,17 +33,28 @@ const initialForm = {
   confluence_count: 0,
   emotional_state: '',
   trade_story: '',
+  mistake_tags: [] as string[],
 }
 
 export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [showStory, setShowStory] = useState(false)
+  const [showMistakes, setShowMistakes] = useState(false)
   const [form, setForm] = useState(initialForm)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function toggleMistake(label: string) {
+    setForm(prev => ({
+      ...prev,
+      mistake_tags: prev.mistake_tags.includes(label)
+        ? prev.mistake_tags.filter(t => t !== label)
+        : [...prev.mistake_tags, label],
+    }))
   }
 
   const canSubmit =
@@ -60,6 +83,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
           confluence_count: form.confluence_count,
           emotional_state: form.emotional_state || null,
           trade_story: form.trade_story || null,
+          mistake_tags: form.mistake_tags,
         }),
       })
 
@@ -72,6 +96,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
       onTradeAdded(trade)
       setForm(initialForm)
       setShowStory(false)
+      setShowMistakes(false)
       setExpanded(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -240,6 +265,50 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
           ))}
         </div>
       </div>
+
+      {/* Mistake tags */}
+      {!showMistakes ? (
+        <button
+          type="button"
+          onClick={() => setShowMistakes(true)}
+          className="text-xs text-amber-400/70 hover:text-amber-400 text-left"
+        >
+          + Tag a mistake (optional)
+        </button>
+      ) : (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs text-slate-400">Mistake Tags</label>
+            {form.mistake_tags.length > 0 && (
+              <span className="text-xs text-amber-400">{form.mistake_tags.length} tagged</span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {MISTAKE_TAGS.map(({ label, color }) => {
+              const active = form.mistake_tags.includes(label)
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => toggleMistake(label)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
+                    active
+                      ? color + ' opacity-100 scale-105'
+                      : 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-600'
+                  }`}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+          {form.mistake_tags.length > 0 && (
+            <p className="text-xs text-amber-400/60 mt-2">
+              These mistakes will be tracked in your analytics to show their total cost.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Trade story toggle */}
       {!showStory ? (

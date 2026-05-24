@@ -1,11 +1,16 @@
 import type {
   Trade,
   Session,
+  SetupType,
   CircuitBreakerEvent,
   AnalyticsSummary,
   WinRateByDimension,
   EquityPoint,
+  DayOfWeekStats,
+  MistakeStat,
 } from '@/types'
+
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 function groupBy<T>(arr: T[], key: (item: T) => string): Record<string, T[]> {
   return arr.reduce((acc, item) => {
@@ -35,12 +40,14 @@ function profitFactor(trades: Trade[]): number {
 export function computeAnalytics(
   sessions: Session[],
   trades: Trade[],
-  cbEvents: CircuitBreakerEvent[]
+  cbEvents: CircuitBreakerEvent[],
+  setupTypes?: SetupType[]
 ): AnalyticsSummary {
   const total_sessions = sessions.length
   const total_trades = trades.length
   const total_pnl = trades.reduce((s, t) => s + t.pnl, 0)
   const { wins, win_rate } = winRateStats(trades)
+  void wins
 
   const circuit_breaker_cost = cbEvents
     .filter(e => e.action_taken === 'ended_session')
@@ -77,8 +84,13 @@ export function computeAnalytics(
     }
   })
 
-  // Win rate by setup
-  const bySetup = groupBy(trades.filter(t => t.setup_type_id), t => t.setup_type_id!)
+  // Win rate by setup (use name if setupTypes provided, fallback to id)
+  const setupNameMap: Record<string, string> = {}
+  for (const st of setupTypes ?? []) setupNameMap[st.id] = st.name
+  const bySetup = groupBy(
+    trades.filter(t => t.setup_type_id),
+    t => setupNameMap[t.setup_type_id!] ?? t.setup_type_id!
+  )
   const win_rate_by_setup: WinRateByDimension[] = Object.entries(bySetup).map(
     ([dimension, ts]) => ({ dimension, ...winRateStats(ts) })
   )
@@ -105,6 +117,54 @@ export function computeAnalytics(
     ([dimension, ts]) => ({ dimension, ...winRateStats(ts) })
   )
 
+  // P&L by day of week (based on session start_time)
+  const sessionPnlMap: Record<string, number> = {}
+  for (const s of sessions) {
+    sessionPnlMap[s.id] = trades
+      .filter(t => t.session_id === s.id)
+      .reduce((sum, t) => sum + t.pnl, 0)
+  }
+  const dayPnlMap: Record<string, number[]> = {}
+  for (const s of sessions) {
+    const day = DAYS[new Date(s.start_time).getDay()]
+    dayPnlMap[day] = dayPnlMap[day] ?? []
+    dayPnlMap[day].push(sessionPnlMap[s.id])
+  }
+  const pnl_by_day_of_week: DayOfWeekStats[] = DAYS
+    .filter(day => dayPnlMap[day])
+    .map(day => {
+      const pnls = dayPnlMap[day]
+      return {
+        day,
+        sessions: pnls.length,
+        avg_pnl: pnls.reduce((a, b) => a + b, 0) / pnls.length,
+        total_pnl: pnls.reduce((a, b) => a + b, 0),
+        win_sessions: pnls.filter(p => p > 0).length,
+      }
+    })
+
+  // Mistake tag analysis
+  const mistakeMap: Record<string, { count: number; cost: number }> = {}
+  for (const t of trades) {
+    if (t.mistake_tags && t.mistake_tags.length > 0) {
+      for (const tag of t.mistake_tags) {
+        mistakeMap[tag] = mistakeMap[tag] ?? { count: 0, cost: 0 }
+        mistakeMap[tag].count += 1
+        mistakeMap[tag].cost += t.pnl
+      }
+    }
+  }
+  const mistake_stats: MistakeStat[] = Object.entries(mistakeMap).map(([tag, { count, cost }]) => ({
+    tag,
+    count,
+    total_cost: cost,
+    avg_cost: cost / count,
+  })).sort((a, b) => a.total_cost - b.total_cost)
+
+  const mistake_total_cost = trades
+    .filter(t => t.mistake_tags && t.mistake_tags.length > 0)
+    .reduce((sum, t) => sum + t.pnl, 0)
+
   return {
     total_sessions,
     total_trades,
@@ -119,5 +179,8 @@ export function computeAnalytics(
     win_rate_by_session,
     win_rate_by_emotion,
     win_rate_by_confluence,
+    pnl_by_day_of_week,
+    mistake_stats,
+    mistake_total_cost,
   }
 }

@@ -87,6 +87,7 @@ export interface Trade {
   emotional_state: string | null
   contract_size: number
   trade_story: string | null
+  mistake_tags: string[]
   created_at: string
   setup_types?: SetupType
 }
@@ -119,6 +120,21 @@ export interface EquityPoint {
   session_pnl: number
 }
 
+export interface DayOfWeekStats {
+  day: string
+  sessions: number
+  avg_pnl: number
+  total_pnl: number
+  win_sessions: number
+}
+
+export interface MistakeStat {
+  tag: string
+  count: number
+  total_cost: number
+  avg_cost: number
+}
+
 export interface AnalyticsSummary {
   total_sessions: number
   total_trades: number
@@ -133,6 +149,9 @@ export interface AnalyticsSummary {
   win_rate_by_session: WinRateByDimension[]
   win_rate_by_emotion: WinRateByDimension[]
   win_rate_by_confluence: WinRateByDimension[]
+  pnl_by_day_of_week: DayOfWeekStats[]
+  mistake_stats: MistakeStat[]
+  mistake_total_cost: number
 }
 
 // P&L state for circuit breaker

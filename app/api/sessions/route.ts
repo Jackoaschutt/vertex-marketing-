@@ -1,13 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+// GET /api/sessions?account_id=xxx — find active session for account
+export async function GET(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const accountId = req.nextUrl.searchParams.get('account_id')
+  if (!accountId) return NextResponse.json({ session: null })
+
+  const { data: session } = await supabase
+    .from('sessions')
+    .select('id, start_time, trading_session')
+    .eq('prop_account_id', accountId)
+    .eq('status', 'active')
+    .single()
+
+  return NextResponse.json({ session: session ?? null })
+}
+
 // POST /api/sessions — create a new session
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { prop_account_id, trading_session, pre_emotional_state, has_setup } = await req.json()
+  const { prop_account_id, trading_session, pre_emotional_state, has_setup, game_plan } = await req.json()
 
   // Verify prop_account belongs to user
   const { data: account } = await supabase
@@ -30,7 +49,7 @@ export async function POST(req: NextRequest) {
   // Create session
   const { data: session, error } = await supabase
     .from('sessions')
-    .insert({ prop_account_id, trading_session, pre_emotional_state, has_setup })
+    .insert({ prop_account_id, trading_session, pre_emotional_state, has_setup, game_plan })
     .select()
     .single()
 

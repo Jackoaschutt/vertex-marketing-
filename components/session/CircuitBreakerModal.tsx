@@ -24,7 +24,6 @@ export default function CircuitBreakerModal({
 
   const allAnswered = a1.trim().length >= 3 && a2.trim().length >= 3 && a3.trim().length >= 3
 
-  // Block escape key and backdrop clicks — no dismissal allowed
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -70,30 +69,31 @@ export default function CircuitBreakerModal({
 
   return (
     <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/90 backdrop-blur-sm">
-      <div className="w-full max-w-lg mx-4 bg-zinc-900 border border-amber-600 rounded-2xl p-8 shadow-2xl flex flex-col gap-6">
-        {/* Icon + heading */}
+      <div className="w-full max-w-lg mx-4 bg-slate-900 border border-amber-600/70 rounded-2xl p-8 shadow-2xl flex flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
-          <span className="text-5xl">⚠️</span>
-          <h2 className="text-amber-400 text-2xl font-bold tracking-widest uppercase">
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-1">
+            <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#f59e0b" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+          <h2 className="text-amber-400 text-xl font-bold tracking-widest uppercase">
             Circuit Breaker
           </h2>
-          <p className="text-zinc-200 font-semibold text-lg">50% Daily Loss Limit Reached</p>
+          <p className="text-white font-semibold text-lg">50% Daily Loss Limit Reached</p>
           <div className="mt-1 flex items-center gap-2 text-sm">
             <span className="text-red-400 font-mono font-bold text-xl">
               -${Math.abs(pnl).toFixed(2)}
             </span>
-            <span className="text-zinc-500">/ DLL</span>
-            <span className="text-zinc-300 font-mono">${dllAmount.toFixed(2)}</span>
+            <span className="text-slate-500">/ DLL</span>
+            <span className="text-slate-300 font-mono">${dllAmount.toFixed(2)}</span>
             <span className="text-amber-500 font-semibold">({lossPct}%)</span>
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="h-px bg-zinc-700" />
+        <div className="h-px bg-slate-800" />
 
-        {/* Mandatory questions */}
         <div className="flex flex-col gap-5">
-          <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">
+          <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">
             You must answer all 3 questions to continue
           </p>
 
@@ -117,7 +117,6 @@ export default function CircuitBreakerModal({
           />
         </div>
 
-        {/* Buttons */}
         <div className="flex flex-col gap-3">
           <button
             onClick={handleContinue}
@@ -129,7 +128,7 @@ export default function CircuitBreakerModal({
           <button
             onClick={handleEndSession}
             disabled={loading}
-            className="w-full py-3 rounded-xl font-semibold text-sm border border-zinc-600 text-zinc-400 hover:border-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-40"
+            className="w-full py-3 rounded-xl font-semibold text-sm border border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200 transition-colors disabled:opacity-40"
           >
             End Session Now
           </button>
@@ -153,7 +152,7 @@ function Question({
   const filled = value.trim().length >= 3
   return (
     <div>
-      <label className="block text-sm text-zinc-200 mb-2">
+      <label className="block text-sm text-slate-200 mb-2">
         <span className="text-amber-500 font-bold mr-1">{number}.</span>
         {label}
       </label>
@@ -162,12 +161,12 @@ function Question({
         onChange={(e) => onChange(e.target.value)}
         rows={2}
         placeholder="Write your answer here..."
-        className={`w-full bg-zinc-800 border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-zinc-600 resize-none transition-colors ${
-          filled ? 'border-amber-600/60' : 'border-zinc-700'
+        className={`w-full bg-slate-800 border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-slate-600 resize-none transition-colors ${
+          filled ? 'border-amber-600/60' : 'border-slate-700'
         }`}
       />
       {value.length > 0 && !filled && (
-        <p className="text-[10px] text-zinc-500 mt-1">At least 3 characters required</p>
+        <p className="text-[10px] text-slate-500 mt-1">At least 3 characters required</p>
       )}
     </div>
   )

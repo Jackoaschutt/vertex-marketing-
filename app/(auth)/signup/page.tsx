@@ -31,11 +31,12 @@ export default function SignupPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-bold text-white mb-6">Create your account</h1>
+      <h1 className="text-2xl font-bold text-white mb-1">Create your account</h1>
+      <p className="text-slate-500 text-sm mb-6">Start your 7-day free trial, no credit card required</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-zinc-400 mb-1.5">
+          <label htmlFor="email" className="block text-sm font-medium text-slate-400 mb-1.5">
             Email
           </label>
           <input
@@ -46,12 +47,12 @@ export default function SignupPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition"
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
           />
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-zinc-400 mb-1.5">
+          <label htmlFor="password" className="block text-sm font-medium text-slate-400 mb-1.5">
             Password
           </label>
           <input
@@ -63,7 +64,7 @@ export default function SignupPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Min. 8 characters"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition"
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
           />
         </div>
 
@@ -76,7 +77,7 @@ export default function SignupPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-lg px-4 py-2.5 transition"
+          className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-lg px-4 py-2.5 transition"
         >
           {loading ? (
             <>
@@ -90,15 +91,11 @@ export default function SignupPage() {
             'Start Free Trial'
           )}
         </button>
-
-        <p className="text-center text-xs text-zinc-500">
-          7-day free trial, no credit card required
-        </p>
       </form>
 
-      <p className="mt-6 text-center text-sm text-zinc-500">
+      <p className="mt-6 text-center text-sm text-slate-500">
         Already have an account?{' '}
-        <Link href="/login" className="text-sky-400 hover:text-sky-300 font-medium transition">
+        <Link href="/login" className="text-violet-400 hover:text-violet-300 font-medium transition">
           Sign in
         </Link>
       </p>

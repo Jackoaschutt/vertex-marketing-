@@ -43,13 +43,13 @@ export default function TradeList({ trades }: Props) {
                 ? 'bg-green-900/60 text-green-400'
                 : trade.result === 'loss'
                 ? 'bg-red-900/60 text-red-400'
-                : 'bg-zinc-700 text-zinc-300'
+                : 'bg-slate-700 text-slate-300'
             const pnlStr = `${trade.pnl >= 0 ? '+' : ''}$${trade.pnl.toFixed(2)}`
 
             return (
               <div
                 key={trade.id}
-                className="flex items-center gap-2 bg-zinc-800/60 border border-zinc-700/40 rounded-xl px-3 py-2.5"
+                className="flex items-center gap-2 bg-slate-800/60 border border-slate-700/40 rounded-xl px-3 py-2.5"
               >
                 {/* Instrument */}
                 <span className="font-mono font-bold text-white text-sm w-10 flex-shrink-0">
@@ -82,7 +82,7 @@ export default function TradeList({ trades }: Props) {
 
                 {/* Emotional state chip */}
                 {trade.emotional_state && (
-                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-zinc-700 text-zinc-400 flex-shrink-0">
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-700 text-slate-400 flex-shrink-0">
                     {trade.emotional_state}
                   </span>
                 )}

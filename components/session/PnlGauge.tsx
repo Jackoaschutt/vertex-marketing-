@@ -54,7 +54,7 @@ export default function PnlGauge({ pnl, dllAmount }: Props) {
       ? 'bg-red-600'
       : absPct >= 50
       ? 'bg-amber-500'
-      : 'bg-green-500'
+      : 'bg-emerald-500'
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -64,7 +64,7 @@ export default function PnlGauge({ pnl, dllAmount }: Props) {
         <path
           d={bgPath}
           fill="none"
-          stroke="#3f3f46"
+          stroke="#1e293b"
           strokeWidth={14}
           strokeLinecap="round"
         />
@@ -95,7 +95,7 @@ export default function PnlGauge({ pnl, dllAmount }: Props) {
           y={CY + 26}
           textAnchor="middle"
           fontSize="9"
-          fill="#71717a"
+          fill="#64748b"
           fontFamily="sans-serif"
         >
           Session P&amp;L
@@ -104,7 +104,7 @@ export default function PnlGauge({ pnl, dllAmount }: Props) {
 
       {/* DLL Progress Bar */}
       <div className="w-full px-1">
-        <div className="relative h-3 w-full bg-zinc-800 rounded-full overflow-visible">
+        <div className="relative h-3 w-full bg-slate-800 rounded-full overflow-visible">
           {/* Fill */}
           <div
             className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ${fillColor}`}
@@ -136,14 +136,14 @@ export default function PnlGauge({ pnl, dllAmount }: Props) {
 
       {/* Loss vs DLL text */}
       {pnl < 0 && (
-        <p className="text-xs text-zinc-400 text-center">
+        <p className="text-xs text-slate-400 text-center">
           Loss:{' '}
           <span className="text-red-400 font-mono font-semibold">
             ${Math.abs(pnl).toFixed(2)}
           </span>{' '}
           / DLL:{' '}
-          <span className="text-zinc-300 font-mono">${dllAmount.toFixed(2)}</span>{' '}
-          <span className="text-zinc-500">({absPct.toFixed(1)}%)</span>
+          <span className="text-slate-300 font-mono">${dllAmount.toFixed(2)}</span>{' '}
+          <span className="text-slate-500">({absPct.toFixed(1)}%)</span>
         </p>
       )}
     </div>

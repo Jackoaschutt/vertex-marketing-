@@ -84,7 +84,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
     return (
       <button
         onClick={() => setExpanded(true)}
-        className="w-full py-3 rounded-xl border-2 border-dashed border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200 transition-colors text-sm font-medium"
+        className="w-full py-3 rounded-xl border-2 border-dashed border-slate-700 text-slate-400 hover:border-violet-600/50 hover:text-slate-200 hover:bg-violet-950/10 transition-all text-sm font-medium"
       >
         + Log Trade
       </button>
@@ -94,14 +94,14 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-zinc-800 rounded-xl p-4 flex flex-col gap-4"
+      className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col gap-4"
     >
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-white">Log Trade</h3>
         <button
           type="button"
           onClick={() => setExpanded(false)}
-          className="text-zinc-500 hover:text-zinc-200 text-lg leading-none"
+          className="text-slate-500 hover:text-slate-200 text-lg leading-none"
         >
           &times;
         </button>
@@ -109,19 +109,19 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
 
       {/* Instrument */}
       <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">Instrument</label>
+        <label className="block text-xs text-slate-400 mb-1.5">Instrument</label>
         <input
           type="text"
           value={form.instrument}
           onChange={(e) => set('instrument', e.target.value)}
           placeholder="NQ, ES, CL..."
-          className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-600 placeholder:text-zinc-600"
+          className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600 placeholder:text-slate-600"
         />
       </div>
 
       {/* Direction */}
       <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">Direction</label>
+        <label className="block text-xs text-slate-400 mb-1.5">Direction</label>
         <div className="flex gap-2">
           {(['long', 'short'] as TradeDirection[]).map((dir) => (
             <button
@@ -131,9 +131,9 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
               className={`flex-1 py-2 rounded-lg text-sm font-semibold capitalize transition-colors border ${
                 form.direction === dir
                   ? dir === 'long'
-                    ? 'bg-green-700 border-green-600 text-white'
+                    ? 'bg-emerald-700 border-emerald-600 text-white'
                     : 'bg-red-700 border-red-600 text-white'
-                  : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
               }`}
             >
               {dir === 'long' ? 'Long' : 'Short'}
@@ -144,7 +144,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
 
       {/* Result */}
       <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">Result</label>
+        <label className="block text-xs text-slate-400 mb-1.5">Result</label>
         <div className="flex gap-2">
           {(['win', 'loss', 'breakeven'] as TradeResult[]).map((r) => (
             <button
@@ -154,11 +154,11 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
               className={`flex-1 py-2 rounded-lg text-sm font-semibold capitalize transition-colors border ${
                 form.result === r
                   ? r === 'win'
-                    ? 'bg-green-700 border-green-600 text-white'
+                    ? 'bg-emerald-700 border-emerald-600 text-white'
                     : r === 'loss'
                     ? 'bg-red-700 border-red-600 text-white'
-                    : 'bg-zinc-600 border-zinc-500 text-white'
-                  : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                    : 'bg-slate-600 border-slate-500 text-white'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
               }`}
             >
               {r === 'breakeven' ? 'BE' : r}
@@ -169,25 +169,25 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
 
       {/* P&L */}
       <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">P&amp;L ($)</label>
+        <label className="block text-xs text-slate-400 mb-1.5">P&amp;L ($)</label>
         <input
           type="number"
           step="any"
           value={form.pnl}
           onChange={(e) => set('pnl', e.target.value)}
           placeholder="-250 for a loss, 350 for a win"
-          className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-600 placeholder:text-zinc-600"
+          className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600 placeholder:text-slate-600"
         />
       </div>
 
       {/* Setup type */}
       {setupTypes.length > 0 && (
         <div>
-          <label className="block text-xs text-zinc-400 mb-1.5">Setup Type (optional)</label>
+          <label className="block text-xs text-slate-400 mb-1.5">Setup Type (optional)</label>
           <select
             value={form.setup_type_id}
             onChange={(e) => set('setup_type_id', e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-600"
+            className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600"
           >
             <option value="">None</option>
             {setupTypes.map((s) => (
@@ -201,7 +201,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
 
       {/* Confluence count */}
       <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">Confluence Count</label>
+        <label className="block text-xs text-slate-400 mb-1.5">Confluence Count</label>
         <div className="flex gap-1.5">
           {CONFLUENCE_OPTIONS.map((n) => (
             <button
@@ -210,8 +210,8 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
               onClick={() => set('confluence_count', n)}
               className={`w-9 h-9 rounded-lg text-sm font-semibold transition-colors border ${
                 form.confluence_count === n
-                  ? 'bg-sky-700 border-sky-600 text-white'
-                  : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                  ? 'bg-violet-700 border-violet-600 text-white'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
               }`}
             >
               {n}
@@ -222,7 +222,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
 
       {/* Emotional state */}
       <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">Emotional State</label>
+        <label className="block text-xs text-slate-400 mb-1.5">Emotional State</label>
         <div className="flex flex-wrap gap-1.5">
           {EMOTIONAL_STATES.map((state) => (
             <button
@@ -231,8 +231,8 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
               onClick={() => set('emotional_state', form.emotional_state === state ? '' : state)}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
                 form.emotional_state === state
-                  ? 'bg-sky-700 border-sky-600 text-white'
-                  : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                  ? 'bg-violet-700 border-violet-600 text-white'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
               }`}
             >
               {state}
@@ -246,19 +246,19 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
         <button
           type="button"
           onClick={() => setShowStory(true)}
-          className="text-xs text-sky-400 hover:text-sky-300 text-left underline"
+          className="text-xs text-violet-400 hover:text-violet-300 text-left underline"
         >
           + Add trade story
         </button>
       ) : (
         <div>
-          <label className="block text-xs text-zinc-400 mb-1.5">Trade Story (optional)</label>
+          <label className="block text-xs text-slate-400 mb-1.5">Trade Story (optional)</label>
           <textarea
             value={form.trade_story}
             onChange={(e) => set('trade_story', e.target.value)}
             placeholder="What happened? What were you thinking?"
             rows={3}
-            className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-600 placeholder:text-zinc-600 resize-none"
+            className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-600 placeholder:text-slate-600 resize-none"
           />
         </div>
       )}
@@ -268,7 +268,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
       <button
         type="submit"
         disabled={!canSubmit || loading}
-        className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-600 hover:bg-sky-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-2.5 rounded-lg text-sm font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Logging...' : 'Log Trade'}
       </button>

@@ -31,17 +31,17 @@ function formatDate(iso: string) {
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
-    active: 'bg-sky-950 text-sky-400',
-    passed: 'bg-green-950 text-green-400',
-    failed: 'bg-red-950 text-red-400',
+    active: 'bg-violet-950 text-violet-300 border border-violet-800/40',
+    passed: 'bg-green-950 text-green-400 border border-green-800/40',
+    failed: 'bg-red-950 text-red-400 border border-red-800/40',
   }
-  return `inline-block px-2 py-0.5 rounded-full text-xs font-medium ${map[status] ?? 'bg-zinc-800 text-zinc-400'}`
+  return `inline-block px-2 py-0.5 rounded-full text-xs font-medium ${map[status] ?? 'bg-slate-800 text-slate-400'}`
 }
 
 function dllBarColor(pct: number) {
   if (pct >= 80) return 'bg-red-500'
   if (pct >= 50) return 'bg-amber-500'
-  return 'bg-green-500'
+  return 'bg-emerald-500'
 }
 
 // ─── page ────────────────────────────────────────────────────────────────────
@@ -54,7 +54,6 @@ export default async function DashboardPage() {
 
   if (!user) return null
 
-  // Prop accounts with firm rules
   const { data: accounts } = await supabase
     .from('prop_accounts')
     .select('*, prop_firm_rules(*)')
@@ -63,7 +62,6 @@ export default async function DashboardPage() {
 
   const accountIds = (accounts ?? []).map((a: PropAccount) => a.id)
 
-  // Recent sessions (last 5)
   const { data: recentSessions } = await supabase
     .from('sessions')
     .select('*, prop_accounts(nickname, prop_firm_rules(name))')
@@ -71,7 +69,6 @@ export default async function DashboardPage() {
     .order('start_time', { ascending: false })
     .limit(5)
 
-  // Trades this week for P&L
   const weekAgo = new Date()
   weekAgo.setDate(weekAgo.getDate() - 7)
 
@@ -83,14 +80,11 @@ export default async function DashboardPage() {
     .in('session_id', sessionIds.length ? sessionIds : ['__none__'])
     .gte('created_at', weekAgo.toISOString())
 
-  // Available prop firm rules for "Add Account" modal
   const { data: firmRules } = await supabase
     .from('prop_firm_rules')
     .select('*')
     .eq('is_custom', false)
     .order('name')
-
-  // ── computed stats ──────────────────────────────────────────────────────
 
   const trades = (weekTrades ?? []) as (Trade & { created_at: string })[]
   const weekPnl = trades.reduce((sum, t) => sum + (t.pnl ?? 0), 0)
@@ -100,13 +94,6 @@ export default async function DashboardPage() {
 
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
-
-  // Map session_id → start_time for filtering today's trades per account
-  const sessionMap = Object.fromEntries(
-    (recentSessions ?? []).map((s: Session) => [s.id, s.start_time])
-  )
-
-  // ── per-account DLL computation ─────────────────────────────────────────
 
   function todayPnlForAccount(accountId: string) {
     const todaySessions = (recentSessions ?? [])
@@ -122,9 +109,6 @@ export default async function DashboardPage() {
       .reduce((sum, t) => sum + (t.pnl ?? 0), 0)
   }
 
-  // ── circuit breaker counts per session ──────────────────────────────────
-  // (We don't fetch CB events here for brevity — show "-" in table)
-
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       {/* ── Header ── */}
@@ -133,7 +117,7 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-bold text-white">
             {greeting()}, {user.email?.split('@')[0]}
           </h1>
-          <p className="text-sm text-zinc-500 mt-0.5">{user.email}</p>
+          <p className="text-sm text-slate-500 mt-0.5">{user.email}</p>
         </div>
         <AddAccountButton
           firmOptions={(firmRules ?? []) as PropFirmRule[]}
@@ -143,30 +127,29 @@ export default async function DashboardPage() {
 
       {/* ── Week Stats ── */}
       <div className="grid grid-cols-3 gap-4">
-        {/* Week P&L */}
-        <div className="bg-zinc-800 rounded-xl p-5">
-          <p className="text-xs text-zinc-500 mb-1">Week P&amp;L</p>
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+          <p className="text-xs text-slate-500 mb-1 uppercase tracking-wider font-medium">Week P&amp;L</p>
           <p
-            className={`text-2xl font-bold ${
-              weekPnl >= 0 ? 'text-green-400' : 'text-red-400'
+            className={`text-2xl font-bold font-mono tabular-nums ${
+              weekPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
             }`}
           >
             {formatPnl(weekPnl)}
           </p>
         </div>
 
-        {/* Sessions this week */}
-        <div className="bg-zinc-800 rounded-xl p-5">
-          <p className="text-xs text-zinc-500 mb-1">Sessions This Week</p>
-          <p className="text-2xl font-bold text-white">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+          <p className="text-xs text-slate-500 mb-1 uppercase tracking-wider font-medium">Sessions This Week</p>
+          <p className="text-2xl font-bold text-white font-mono tabular-nums">
             {(recentSessions ?? []).length}
           </p>
         </div>
 
-        {/* Win rate */}
-        <div className="bg-zinc-800 rounded-xl p-5">
-          <p className="text-xs text-zinc-500 mb-1">Win Rate This Week</p>
-          <p className="text-2xl font-bold text-white">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+          <p className="text-xs text-slate-500 mb-1 uppercase tracking-wider font-medium">Win Rate This Week</p>
+          <p className={`text-2xl font-bold font-mono tabular-nums ${
+            winRate === null ? 'text-white' : winRate >= 50 ? 'text-emerald-400' : 'text-red-400'
+          }`}>
             {winRate !== null ? `${winRate}%` : '—'}
           </p>
         </div>
@@ -175,7 +158,7 @@ export default async function DashboardPage() {
       {/* ── Prop Account Cards ── */}
       {(accounts ?? []).length > 0 ? (
         <section>
-          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
             Accounts
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -192,8 +175,7 @@ export default async function DashboardPage() {
                   : 0
 
               return (
-                <div key={account.id} className="bg-zinc-800 rounded-xl p-5 space-y-4">
-                  {/* Top row */}
+                <div key={account.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 hover:border-slate-700 transition-colors">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-white">{account.nickname}</span>
                     <span className={statusBadge(account.status)}>
@@ -201,8 +183,7 @@ export default async function DashboardPage() {
                     </span>
                   </div>
 
-                  {/* Firm + balance */}
-                  <div className="text-sm text-zinc-400">
+                  <div className="text-sm text-slate-400">
                     {rules?.name ?? 'Custom'} &middot;{' '}
                     {account.starting_balance.toLocaleString('en-US', {
                       style: 'currency',
@@ -211,24 +192,23 @@ export default async function DashboardPage() {
                     })}
                   </div>
 
-                  {/* DLL bar */}
                   {dllAmount > 0 && (
                     <div className="space-y-1.5">
                       <div className="flex justify-between text-xs">
-                        <span className="text-zinc-500">Daily Loss Limit</span>
+                        <span className="text-slate-500">Daily Loss Limit</span>
                         <span
                           className={
                             dllPct >= 80
                               ? 'text-red-400'
                               : dllPct >= 50
                               ? 'text-amber-400'
-                              : 'text-green-400'
+                              : 'text-emerald-400'
                           }
                         >
                           {dllPct}% used
                         </span>
                       </div>
-                      <div className="h-2 rounded-full bg-zinc-700 overflow-hidden">
+                      <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${dllBarColor(dllPct)}`}
                           style={{ width: `${dllPct}%` }}
@@ -237,16 +217,18 @@ export default async function DashboardPage() {
                     </div>
                   )}
 
-                  {/* CTA */}
                   {account.status === 'active' ? (
                     <Link
                       href={`/session/new?account=${account.id}`}
-                      className="inline-block mt-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-sky-600 hover:bg-sky-500 text-white transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors"
                     >
+                      <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none" />
+                      </svg>
                       Start Session
                     </Link>
                   ) : (
-                    <p className="text-xs text-zinc-500 italic capitalize">
+                    <p className="text-xs text-slate-500 italic capitalize">
                       Account {account.status}
                     </p>
                   )}
@@ -256,8 +238,8 @@ export default async function DashboardPage() {
           </div>
         </section>
       ) : (
-        <div className="bg-zinc-800 rounded-xl p-8 text-center">
-          <p className="text-zinc-400 text-sm">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
+          <p className="text-slate-400 text-sm">
             No accounts yet —{' '}
             <AddAccountButton
               firmOptions={(firmRules ?? []) as PropFirmRule[]}
@@ -269,42 +251,42 @@ export default async function DashboardPage() {
 
       {/* ── Recent Sessions ── */}
       <section>
-        <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
           Recent Sessions
         </h2>
 
         {(recentSessions ?? []).length === 0 ? (
-          <div className="bg-zinc-800 rounded-xl p-8 text-center">
-            <p className="text-zinc-400 text-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
+            <p className="text-slate-400 text-sm">
               No sessions yet — start your first session above
             </p>
           </div>
         ) : (
-          <div className="bg-zinc-800 rounded-xl overflow-hidden">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-700">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                <tr className="border-b border-slate-800">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Date
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Account
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                     P&amp;L
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Trades
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                     CB Events
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Status
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-700">
+              <tbody className="divide-y divide-slate-800">
                 {(recentSessions as Session[]).map((session) => {
                   const sessionPnl = trades
                     .filter((t) => t.session_id === session.id)
@@ -319,30 +301,30 @@ export default async function DashboardPage() {
                   return (
                     <tr
                       key={session.id}
-                      className="hover:bg-zinc-700/50 transition-colors"
+                      className="hover:bg-slate-800/50 transition-colors"
                     >
-                      <td className="px-4 py-3 text-zinc-300 whitespace-nowrap">
+                      <td className="px-4 py-3 text-slate-300 whitespace-nowrap">
                         <Link
                           href={`/session/${session.id}`}
-                          className="hover:text-sky-400 transition-colors"
+                          className="hover:text-violet-400 transition-colors"
                         >
                           {formatDate(session.start_time)}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-zinc-300">
+                      <td className="px-4 py-3 text-slate-300">
                         {acct?.nickname ?? '—'}
                       </td>
                       <td
-                        className={`px-4 py-3 text-right font-medium ${
-                          sessionPnl >= 0 ? 'text-green-400' : 'text-red-400'
+                        className={`px-4 py-3 text-right font-medium font-mono tabular-nums ${
+                          sessionPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
                         }`}
                       >
                         {sessionTrades > 0 ? formatPnl(sessionPnl) : '—'}
                       </td>
-                      <td className="px-4 py-3 text-right text-zinc-300">
+                      <td className="px-4 py-3 text-right text-slate-300 font-mono tabular-nums">
                         {sessionTrades > 0 ? sessionTrades : '—'}
                       </td>
-                      <td className="px-4 py-3 text-right text-zinc-400">—</td>
+                      <td className="px-4 py-3 text-right text-slate-400">—</td>
                       <td className="px-4 py-3">
                         <span className={statusBadge(session.status)}>
                           {session.status}

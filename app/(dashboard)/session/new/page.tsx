@@ -2,91 +2,111 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import type { TradingSession } from '@/types'
 
-const TRADING_SESSIONS: { value: TradingSession; label: string; emoji: string; time: string }[] = [
-  { value: 'LONDON', label: 'London Open', emoji: '🇬🇧', time: '3–5am EST' },
-  { value: 'NY_OPEN', label: 'NY Open', emoji: '🗽', time: '9:30am EST' },
-  { value: 'NY_CLOSE', label: 'NY Close', emoji: '🌆', time: '3–4pm EST' },
-  { value: 'ASIA', label: 'Asia', emoji: '🏯', time: '7pm–2am EST' },
-  { value: 'OTHER', label: 'Other', emoji: '🌍', time: 'Custom' },
+const C = {
+  bg:      '#09090f',
+  surface: '#0f0f17',
+  card:    '#14141e',
+  border:  '#1e1e2e',
+  accent:  '#06b6d4',
+  green:   '#22c55e',
+  red:     '#ef4444',
+  amber:   '#f59e0b',
+  text:    '#f1f5f9',
+  sub:     '#64748b',
+}
+
+const SESSIONS: { value: TradingSession; label: string; emoji: string; time: string }[] = [
+  { value: 'LONDON',   label: 'London Open',  emoji: '🇬🇧', time: '3–5am EST' },
+  { value: 'NY_OPEN',  label: 'NY Open',      emoji: '🗽',  time: '9:30am EST' },
+  { value: 'NY_CLOSE', label: 'NY Close',     emoji: '🌆',  time: '3–4pm EST' },
+  { value: 'ASIA',     label: 'Asia',         emoji: '🏯',  time: '7pm–2am EST' },
+  { value: 'OTHER',    label: 'Other',        emoji: '🌍',  time: 'Custom' },
 ]
 
-const EMOTIONAL_STATES = [
-  { value: 'Calm', emoji: '😌', desc: 'Clear headed, relaxed' },
-  { value: 'Focused', emoji: '🎯', desc: 'Locked in, sharp' },
-  { value: 'Anxious', emoji: '😰', desc: 'Nervous, second-guessing' },
-  { value: 'Frustrated', emoji: '😤', desc: 'Annoyed, edge taking over' },
-  { value: 'Euphoric', emoji: '🤑', desc: 'Overconfident, chasing' },
-]
+const TOTAL = 6
+const STEPS = ['Emotional State', 'Sleep Quality', 'Which Session', 'Approach', 'Session Plan', 'Confirm']
 
-const TOTAL_STEPS = 4
+function emotionToState(val: number): string {
+  if (val <= 3) return 'Frustrated'
+  if (val <= 5) return 'Anxious'
+  if (val <= 7) return 'Calm'
+  return 'Focused'
+}
+
+function Slider({ val, onChange, low = 6 }: { val: number; onChange: (v: number) => void; low?: number }) {
+  const col = val >= 7 ? C.green : val >= low ? C.amber : C.red
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <span style={{ fontSize: 12, color: C.sub }}>1 — Terrible</span>
+        <span style={{ fontSize: 40, fontWeight: 700, fontFamily: 'monospace', color: col }}>{val}</span>
+        <span style={{ fontSize: 12, color: C.sub }}>10 — Perfect</span>
+      </div>
+      <input
+        type="range" min={1} max={10} value={val}
+        onChange={e => onChange(+e.target.value)}
+        style={{ width: '100%', accentColor: C.accent, height: 4, cursor: 'pointer' }}
+      />
+    </div>
+  )
+}
 
 export default function NewSessionPage() {
-  const router = useRouter()
+  const router       = useRouter()
   const searchParams = useSearchParams()
-  const accountId = searchParams.get('account') ?? ''
+  const accountId    = searchParams.get('account') ?? ''
 
-  const [step, setStep] = useState(1)
-
+  const [step, setStep] = useState(0)
   const [accountName, setAccountName] = useState<string | null>(null)
-  const [firmName, setFirmName] = useState<string | null>(null)
+  const [firmName, setFirmName]       = useState<string | null>(null)
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
-  const [checkingActive, setCheckingActive] = useState(true)
+  const [checkingActive, setCheckingActive]   = useState(true)
 
+  const [emotion, setEmotion]           = useState(7)
+  const [sleep, setSleep]               = useState(7)
   const [tradingSession, setTradingSession] = useState<TradingSession | ''>('')
-  const [emotionalState, setEmotionalState] = useState('')
-  const [hasSetup, setHasSetup] = useState<boolean | null>(null)
-  const [gamePlan, setGamePlan] = useState('')
+  const [approach, setApproach]         = useState<'Clear Setup' | 'Looking for Action' | null>(null)
+  const [biasReviewed, setBiasReviewed] = useState<boolean | null>(null)
+  const [withinRisk, setWithinRisk]     = useState<boolean | null>(null)
+  const [plan, setPlan]                 = useState('')
+  const [confirmed, setConfirmed]       = useState(false)
 
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError]     = useState<string | null>(null)
 
   useEffect(() => {
     if (!accountId) return
+    const { createClient } = require('@/lib/supabase/client')
     const supabase = createClient()
-
-    supabase
-      .from('prop_accounts')
-      .select('nickname, prop_firm_rules(name)')
-      .eq('id', accountId)
-      .single()
-      .then(({ data }) => {
-        if (data) {
-          setAccountName(data.nickname)
-          const rules = data.prop_firm_rules
-          if (Array.isArray(rules) && rules.length > 0) {
-            setFirmName((rules[0] as { name: string }).name)
-          } else if (rules && !Array.isArray(rules)) {
-            setFirmName((rules as { name: string }).name)
-          }
-        }
+    supabase.from('prop_accounts').select('nickname, prop_firm_rules(name)').eq('id', accountId).single()
+      .then(({ data }: { data: { nickname: string; prop_firm_rules: { name: string } | { name: string }[] } | null }) => {
+        if (!data) return
+        setAccountName(data.nickname)
+        const r = data.prop_firm_rules
+        if (Array.isArray(r) && r.length > 0) setFirmName(r[0].name)
+        else if (r && !Array.isArray(r)) setFirmName(r.name)
       })
 
     fetch(`/api/sessions?account_id=${accountId}`)
       .then(r => r.json())
-      .then(({ session }) => {
-        if (session?.id) setActiveSessionId(session.id)
-      })
+      .then(({ session }) => { if (session?.id) setActiveSessionId(session.id) })
       .finally(() => setCheckingActive(false))
   }, [accountId])
 
-  function next() {
-    setStep(s => Math.min(s + 1, TOTAL_STEPS))
-  }
-  function back() {
-    setStep(s => Math.max(s - 1, 1))
+  const blocked  = emotion < 4
+  const cautious = emotion < 6 && !blocked
+
+  function canNext() {
+    if (step === 2) return tradingSession !== ''
+    if (step === 3) return approach !== null && biasReviewed !== null && withinRisk === true
+    if (step === 4) return plan.trim().length >= 10
+    if (step === 5) return confirmed
+    return true
   }
 
-  const step1Valid = tradingSession !== ''
-  const step2Valid = emotionalState !== ''
-  const step3Valid = hasSetup !== null
-  const step4Valid = gamePlan.trim().length >= 15
-  const allValid = step1Valid && step2Valid && step3Valid && step4Valid
-
-  async function handleSubmit() {
-    if (!allValid) return
+  async function submit() {
     setLoading(true)
     setError(null)
     try {
@@ -94,27 +114,22 @@ export default function NewSessionPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prop_account_id: accountId,
-          trading_session: tradingSession,
-          pre_emotional_state: emotionalState,
-          has_setup: hasSetup,
-          game_plan: gamePlan.trim(),
+          prop_account_id:    accountId,
+          trading_session:    tradingSession || 'NY_OPEN',
+          pre_emotional_state: emotionToState(emotion),
+          has_setup:          approach === 'Clear Setup',
+          game_plan:          plan.trim(),
         }),
       })
-
       if (!res.ok) {
         const data = await res.json()
         if (res.status === 409 && data.error?.includes('Active session')) {
           const check = await fetch(`/api/sessions?account_id=${accountId}`)
           const { session } = await check.json()
-          if (session?.id) {
-            router.push(`/session/${session.id}`)
-            return
-          }
+          if (session?.id) { router.push(`/session/${session.id}`); return }
         }
         throw new Error(data.error ?? 'Failed to start session')
       }
-
       const { session } = await res.json()
       router.push(`/session/${session.id}`)
     } catch (err) {
@@ -125,35 +140,29 @@ export default function NewSessionPage() {
 
   if (checkingActive) {
     return (
-      <div className="min-h-full flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center h-full">
+        <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: `${C.border} ${C.border} ${C.border} ${C.accent}` }} />
       </div>
     )
   }
 
   if (activeSessionId) {
     return (
-      <div className="min-h-full flex items-center justify-center py-12 px-4">
+      <div className="flex items-center justify-center h-full py-12 px-4">
         <div className="w-full max-w-md text-center">
-          <div className="w-16 h-16 rounded-2xl bg-teal-900/40 border border-teal-700/40 flex items-center justify-center mx-auto mb-6">
-            <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#2dd4bf" strokeWidth="1.5">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6" style={{ background: `${C.accent}18`, border: `1px solid ${C.accent}40` }}>
+            <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke={C.accent} strokeWidth="1.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Session In Progress</h1>
-          <p className="text-slate-400 mb-8">
-            You already have an active trading session running.
-          </p>
-          <button
-            onClick={() => router.push(`/session/${activeSessionId}`)}
-            className="w-full py-4 rounded-2xl font-bold text-white bg-teal-600 hover:bg-teal-500 transition-all text-lg shadow-lg shadow-teal-900/30 hover:shadow-teal-900/50 hover:scale-[1.02] active:scale-[0.98]"
-          >
+          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Session In Progress</h1>
+          <p style={{ color: C.sub, marginBottom: 28 }}>You already have an active session running.</p>
+          <button onClick={() => router.push(`/session/${activeSessionId}`)}
+            style={{ width: '100%', padding: '14px', borderRadius: 12, fontWeight: 700, fontSize: 15, background: C.accent, color: '#000', border: 'none', cursor: 'pointer' }}>
             Resume Session →
           </button>
-          <button
-            onClick={() => router.back()}
-            className="mt-3 w-full py-3 rounded-2xl font-medium text-slate-400 hover:text-white transition-colors text-sm"
-          >
+          <button onClick={() => router.back()}
+            style={{ width: '100%', marginTop: 10, padding: '12px', borderRadius: 12, fontWeight: 500, fontSize: 13, background: 'transparent', color: C.sub, border: 'none', cursor: 'pointer' }}>
             Go Back
           </button>
         </div>
@@ -162,225 +171,170 @@ export default function NewSessionPage() {
   }
 
   return (
-    <div className="min-h-full flex items-center justify-center py-12 px-4">
-      <div className="w-full max-w-lg">
+    <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 16px' }}>
+      <div style={{ width: '100%', maxWidth: 540 }}>
 
         {/* Header */}
-        <div className="mb-6 text-center">
-          <p className="text-teal-400 text-xs font-bold uppercase tracking-widest mb-1">Pre-Session Check</p>
-          <h1 className="text-3xl font-black text-white">
-            {accountName ?? 'Start Trading'}
-          </h1>
-          {firmName && <p className="text-slate-500 text-sm mt-1">{firmName}</p>}
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: C.accent, marginBottom: 4 }}>Pre-Session Gate</p>
+          <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.5px' }}>{accountName ?? 'Start Trading'}</h1>
+          {firmName && <p style={{ fontSize: 12, color: C.sub, marginTop: 4 }}>{firmName}</p>}
         </div>
 
         {/* Progress bar */}
-        <div className="flex gap-1.5 mb-8">
-          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-            <div
-              key={i}
-              className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                i < step ? 'bg-teal-500' : 'bg-slate-800'
-              }`}
-            />
+        <div style={{ display: 'flex', gap: 5, marginBottom: 24 }}>
+          {STEPS.map((_, i) => (
+            <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i <= step ? C.accent : C.border, transition: 'background 0.3s' }} />
           ))}
         </div>
 
-        {/* Step card */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl">
+        {/* Card */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28 }}>
+          <p style={{ fontSize: 11, color: C.sub, marginBottom: 4 }}>Step {step + 1} of {TOTAL}</p>
+          <h2 style={{ fontSize: 19, fontWeight: 600, marginBottom: 22 }}>{STEPS[step]}</h2>
 
-          {/* Step 1: Which session */}
-          {step === 1 && (
+          {/* Step 0: Emotional State */}
+          {step === 0 && (
             <div>
-              <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1">Step 1 of {TOTAL_STEPS}</p>
-              <h2 className="text-xl font-bold text-white mb-6">Which session are you trading?</h2>
-              <div className="flex flex-col gap-2">
-                {TRADING_SESSIONS.map((s) => (
-                  <button
-                    key={s.value}
-                    type="button"
-                    onClick={() => setTradingSession(s.value)}
-                    className={`flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all border ${
-                      tradingSession === s.value
-                        ? 'bg-teal-950/50 border-teal-500/60 shadow-lg shadow-teal-900/20'
-                        : 'bg-slate-800/60 border-slate-700 hover:border-zinc-600 hover:bg-slate-800'
-                    }`}
-                  >
-                    <span className="text-2xl">{s.emoji}</span>
-                    <div>
-                      <p className={`font-semibold text-sm ${tradingSession === s.value ? 'text-teal-300' : 'text-white'}`}>{s.label}</p>
-                      <p className="text-slate-500 text-xs">{s.time}</p>
-                    </div>
-                    {tradingSession === s.value && (
-                      <span className="ml-auto text-teal-400 text-lg">✓</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Emotional state */}
-          {step === 2 && (
-            <div>
-              <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1">Step 2 of {TOTAL_STEPS}</p>
-              <h2 className="text-xl font-bold text-white mb-2">How are you feeling right now?</h2>
-              <p className="text-slate-500 text-sm mb-6">Be honest — this protects you.</p>
-              <div className="flex flex-col gap-2">
-                {EMOTIONAL_STATES.map((s) => {
-                  const selected = emotionalState === s.value
-                  return (
-                    <button
-                      key={s.value}
-                      type="button"
-                      onClick={() => setEmotionalState(s.value)}
-                      className={`flex items-center gap-4 px-5 py-4 rounded-2xl text-left transition-all border ${
-                        selected
-                          ? 'bg-slate-700/80 border-zinc-500 shadow-lg'
-                          : 'bg-slate-800/60 border-slate-700 hover:border-zinc-600 hover:bg-slate-800'
-                      }`}
-                    >
-                      <span className="text-3xl">{s.emoji}</span>
-                      <div>
-                        <p className="font-semibold text-sm text-white">{s.value}</p>
-                        <p className="text-slate-400 text-xs">{s.desc}</p>
-                      </div>
-                      {selected && <span className="ml-auto text-slate-300 text-lg">✓</span>}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Clear setup */}
-          {step === 3 && (
-            <div>
-              <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1">Step 3 of {TOTAL_STEPS}</p>
-              <h2 className="text-xl font-bold text-white mb-2">Do you have a clear setup?</h2>
-              <p className="text-slate-500 text-sm mb-8">A defined, backtested trade plan — not a gut feeling.</p>
-              <div className="flex flex-col gap-3">
-                <button
-                  type="button"
-                  onClick={() => setHasSetup(true)}
-                  className={`w-full py-5 rounded-2xl text-lg font-bold transition-all border ${
-                    hasSetup === true
-                      ? 'bg-emerald-800/60 border-emerald-500 text-emerald-300 shadow-lg shadow-emerald-900/20'
-                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-zinc-500 hover:text-white'
-                  }`}
-                >
-                  ✅ Yes, I have a plan
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setHasSetup(false)}
-                  className={`w-full py-5 rounded-2xl text-lg font-bold transition-all border ${
-                    hasSetup === false
-                      ? 'bg-red-900/50 border-red-600 text-red-300 shadow-lg shadow-red-900/20'
-                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-zinc-500 hover:text-white'
-                  }`}
-                >
-                  ❌ No, just vibing
-                </button>
-              </div>
-              {hasSetup === false && (
-                <p className="mt-4 text-sm text-amber-400/80 bg-amber-900/10 border border-amber-800/30 rounded-xl px-4 py-3">
-                  ⚠️ Trading without a setup is how accounts get blown. Consider waiting for a setup to form.
-                </p>
+              <Slider val={emotion} onChange={setEmotion} />
+              {blocked && (
+                <div style={{ marginTop: 14, padding: '11px 14px', borderRadius: 8, fontSize: 12, color: C.red, background: `${C.red}12`, border: `1px solid ${C.red}35` }}>
+                  🔴 Critical — trading is not recommended today. Consider sitting out.
+                </div>
+              )}
+              {cautious && (
+                <div style={{ marginTop: 14, padding: '11px 14px', borderRadius: 8, fontSize: 12, color: C.amber, background: `${C.amber}12`, border: `1px solid ${C.amber}35` }}>
+                  ⚠️ Below threshold — proceed with caution and reduced size.
+                </div>
               )}
             </div>
           )}
 
-          {/* Step 4: Game plan text */}
+          {/* Step 1: Sleep Quality */}
+          {step === 1 && <Slider val={sleep} onChange={setSleep} />}
+
+          {/* Step 2: Trading Session */}
+          {step === 2 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {SESSIONS.map(s => (
+                <button key={s.value} onClick={() => setTradingSession(s.value)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', border: `2px solid ${tradingSession === s.value ? C.accent : C.border}`, background: tradingSession === s.value ? `${C.accent}12` : C.surface, transition: 'all 0.15s' }}>
+                  <span style={{ fontSize: 22 }}>{s.emoji}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontWeight: 600, fontSize: 13, color: tradingSession === s.value ? C.accent : C.text }}>{s.label}</p>
+                    <p style={{ fontSize: 11, color: C.sub }}>{s.time}</p>
+                  </div>
+                  {tradingSession === s.value && <span style={{ color: C.accent }}>✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Step 3: Approach + Bias/Risk */}
+          {step === 3 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <p style={{ fontSize: 12, color: C.sub, marginBottom: 8 }}>Trading approach today</p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {(['Clear Setup', 'Looking for Action'] as const).map(opt => (
+                    <button key={opt} onClick={() => setApproach(opt)}
+                      style={{ flex: 1, padding: '14px 10px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600, border: `2px solid ${approach === opt ? C.accent : C.border}`, background: approach === opt ? `${C.accent}12` : C.surface, color: approach === opt ? C.accent : C.sub, transition: 'all 0.15s' }}>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {[
+                { label: 'Have you reviewed your daily bias?', val: biasReviewed, set: setBiasReviewed },
+                { label: 'Are you within your daily risk parameters?', val: withinRisk, set: setWithinRisk },
+              ].map(item => (
+                <div key={item.label} style={{ padding: '14px 16px', background: C.surface, borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: `1px solid ${C.border}` }}>
+                  <span style={{ fontSize: 13, flex: 1, marginRight: 12 }}>{item.label}</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[true, false].map(opt => (
+                      <button key={String(opt)} onClick={() => item.set(opt)}
+                        style={{ padding: '5px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, border: `1px solid ${item.val === opt ? (opt ? C.green : C.red) : C.border}`, background: item.val === opt ? (opt ? `${C.green}18` : `${C.red}18`) : 'transparent', color: item.val === opt ? (opt ? C.green : C.red) : C.sub }}>
+                        {opt ? 'Yes' : 'No'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {withinRisk === false && (
+                <div style={{ padding: '11px 14px', borderRadius: 8, fontSize: 12, color: C.red, background: `${C.red}12`, border: `1px solid ${C.red}35` }}>
+                  ⚠️ You must be within risk parameters before trading.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 4: Game Plan */}
           {step === 4 && (
             <div>
-              <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-1">Step 4 of {TOTAL_STEPS}</p>
-              <h2 className="text-xl font-bold text-white mb-2">What are you looking to see?</h2>
-              <p className="text-slate-500 text-sm mb-6">
-                Describe the specific price action or setup you need before pulling the trigger.
-                You can&apos;t skip this — accountability starts here.
-              </p>
               <textarea
-                value={gamePlan}
-                onChange={(e) => setGamePlan(e.target.value)}
-                placeholder="e.g. I'm waiting for a break and retest of the NY open high, with a clean FVG and bullish displacement before entry. Min 2:1 RR only."
+                placeholder="e.g. Wait for NY open, only take ICT OB setups on MNQ, max 2 trades, no revenge trading..."
+                value={plan} onChange={e => setPlan(e.target.value)}
                 rows={5}
-                className="w-full bg-slate-800 border border-slate-700 text-white rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 resize-none placeholder:text-zinc-600 leading-relaxed"
+                style={{ width: '100%', padding: '12px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13, fontFamily: 'inherit', lineHeight: 1.6, resize: 'vertical', outline: 'none' }}
               />
-              <div className="flex items-center justify-between mt-2 px-1">
-                <p className={`text-xs transition-colors ${gamePlan.trim().length >= 15 ? 'text-emerald-500' : 'text-zinc-600'}`}>
-                  {gamePlan.trim().length >= 15 ? '✓ Good' : `${Math.max(0, 15 - gamePlan.trim().length)} more chars needed`}
-                </p>
-                <p className="text-zinc-600 text-xs">{gamePlan.trim().length} chars</p>
-              </div>
+              <p style={{ fontSize: 11, color: plan.trim().length >= 10 ? C.green : C.sub, marginTop: 5, textAlign: 'right' }}>
+                {plan.trim().length} chars {plan.trim().length < 10 && '· min 10'}
+              </p>
+            </div>
+          )}
 
+          {/* Step 5: Confirm */}
+          {step === 5 && (
+            <div>
+              <div style={{ padding: 16, background: C.surface, borderRadius: 8, marginBottom: 14, fontSize: 13, lineHeight: 2, border: `1px solid ${C.border}` }}>
+                <div>😊 Emotion: <strong>{emotion}/10</strong> &nbsp;·&nbsp; 😴 Sleep: <strong>{sleep}/10</strong></div>
+                <div>📊 Session: <strong>{SESSIONS.find(s => s.value === tradingSession)?.label ?? '—'}</strong></div>
+                <div>🎯 Approach: <strong>{approach ?? '—'}</strong></div>
+                <div style={{ marginTop: 4, fontSize: 12, color: C.sub }}>{plan}</div>
+              </div>
+              {cautious && !blocked && (
+                <div style={{ padding: '10px 14px', borderRadius: 8, fontSize: 12, color: C.amber, background: `${C.amber}12`, border: `1px solid ${C.amber}35`, marginBottom: 12 }}>
+                  ⚠️ Below-threshold scores recorded — consider trading with reduced size.
+                </div>
+              )}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '14px 16px', background: C.surface, borderRadius: 8, border: `1px solid ${confirmed ? C.accent : C.border}` }}>
+                <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} style={{ accentColor: C.accent, width: 15, height: 15 }} />
+                <span style={{ fontSize: 13 }}>I will only take A+ setups today — no exceptions</span>
+              </label>
               {error && (
-                <p className="mt-4 text-sm text-red-400 bg-red-900/20 border border-red-800/40 rounded-xl px-4 py-3">
-                  {error}
-                </p>
+                <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 8, fontSize: 12, color: C.red, background: `${C.red}12`, border: `1px solid ${C.red}35` }}>{error}</div>
               )}
             </div>
           )}
 
-        </div>
-
-        {/* Nav buttons */}
-        <div className="flex gap-3 mt-5">
-          {step > 1 && (
-            <button
-              onClick={back}
-              className="px-5 py-3.5 rounded-2xl font-semibold text-slate-400 bg-slate-800 hover:bg-slate-700 hover:text-white transition-all text-sm"
-            >
+          {/* Navigation */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
+            <button onClick={() => step > 0 && setStep(step - 1)} disabled={step === 0}
+              style={{ padding: '9px 18px', borderRadius: 7, background: 'transparent', border: `1px solid ${C.border}`, color: C.text, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: step === 0 ? 0.3 : 1 }}>
               ← Back
             </button>
-          )}
-
-          {step < TOTAL_STEPS ? (
             <button
-              onClick={next}
-              disabled={
-                (step === 1 && !step1Valid) ||
-                (step === 2 && !step2Valid) ||
-                (step === 3 && !step3Valid)
-              }
-              className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-teal-600 hover:bg-teal-500 transition-all text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-teal-900/30 active:scale-[0.98]"
-            >
-              Continue →
+              disabled={!canNext() || blocked || (step === 3 && withinRisk === false)}
+              onClick={() => {
+                if (step < TOTAL - 1) setStep(step + 1)
+                else submit()
+              }}
+              style={{ padding: '9px 20px', borderRadius: 7, background: canNext() && !blocked ? C.accent : C.border, color: canNext() && !blocked ? '#000' : C.sub, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: 'none', opacity: (!canNext() || blocked) ? 0.5 : 1 }}>
+              {step === TOTAL - 1
+                ? loading ? 'Starting…' : '🔓 Unlock Session'
+                : 'Continue →'}
             </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={!allValid || loading}
-              className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-teal-600 hover:bg-teal-500 transition-all text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-teal-900/30 active:scale-[0.98]"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Starting...
-                </span>
-              ) : (
-                "Let's Trade ⚡"
-              )}
-            </button>
-          )}
+          </div>
         </div>
 
-        {/* Step indicator dots */}
-        <div className="flex justify-center gap-2 mt-5">
-          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-            <div
-              key={i}
-              className={`rounded-full transition-all duration-300 ${
-                i + 1 === step
-                  ? 'w-5 h-2 bg-teal-500'
-                  : i + 1 < step
-                  ? 'w-2 h-2 bg-teal-700'
-                  : 'w-2 h-2 bg-slate-700'
-              }`}
-            />
+        {/* Step dots */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 20 }}>
+          {STEPS.map((_, i) => (
+            <div key={i} style={{ borderRadius: 9999, transition: 'all 0.3s', width: i === step ? 20 : 8, height: 8, background: i === step ? C.accent : i < step ? `${C.accent}60` : C.border }} />
           ))}
         </div>
-
       </div>
     </div>
   )

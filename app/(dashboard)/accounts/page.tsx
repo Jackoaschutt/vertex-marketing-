@@ -166,23 +166,20 @@ function AccountSection({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function AccountsPage() {
-  const supabase = await createClient()
+  let allAccounts: PropAccount[] = []
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  if (process.env.NEXT_DEMO_MODE !== 'true') {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) redirect('/login')
 
-  if (!user) {
-    redirect('/login')
+    const { data: accounts } = await supabase
+      .from('prop_accounts')
+      .select('*, prop_firm_rules(name, dll_amount, max_drawdown, profit_target)')
+      .eq('trader_id', user.id)
+      .order('created_at', { ascending: false })
+    allAccounts = (accounts ?? []) as PropAccount[]
   }
-
-  const { data: accounts } = await supabase
-    .from('prop_accounts')
-    .select('*, prop_firm_rules(name, dll_amount, max_drawdown, profit_target)')
-    .eq('trader_id', user.id)
-    .order('created_at', { ascending: false })
-
-  const allAccounts = (accounts ?? []) as PropAccount[]
 
   const active = allAccounts.filter((a) => a.status === 'active')
   const passed = allAccounts.filter((a) => a.status === 'passed')

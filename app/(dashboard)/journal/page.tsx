@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { computeAnalytics } from '@/lib/analytics/engine'
-import type { Session, SetupType } from '@/types'
+import type { Session, SetupType, Trade, CircuitBreakerEvent } from '@/types'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-AU', {
@@ -60,37 +60,48 @@ const ROUTINE_STEPS = [
 ]
 
 export default async function JournalPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  let completedSessions: Session[] = []
+  let trades: Trade[] = []
+  let cbEvents: CircuitBreakerEvent[] = []
+  let setupTypes: SetupType[] = []
 
-  const { data: accounts } = await supabase
-    .from('prop_accounts')
-    .select('id')
-    .eq('trader_id', user.id)
-  const accountIds = accounts?.map(a => a.id) ?? []
+  if (process.env.NEXT_DEMO_MODE !== 'true') {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) redirect('/login')
 
-  const { data: completedSessions } = await supabase
-    .from('sessions')
-    .select('*')
-    .in('prop_account_id', accountIds.length > 0 ? accountIds : ['__none__'])
-    .eq('status', 'completed')
-    .order('start_time', { ascending: false })
-    .limit(30)
+    const { data: accounts } = await supabase
+      .from('prop_accounts')
+      .select('id')
+      .eq('trader_id', user.id)
+    const accountIds = accounts?.map(a => a.id) ?? []
 
-  const sessionIds = (completedSessions ?? []).map(s => s.id)
+    const { data: sessions } = await supabase
+      .from('sessions')
+      .select('*')
+      .in('prop_account_id', accountIds.length > 0 ? accountIds : ['__none__'])
+      .eq('status', 'completed')
+      .order('start_time', { ascending: false })
+      .limit(30)
+    completedSessions = sessions ?? []
 
-  const [{ data: trades }, { data: cbEvents }, { data: setupTypes }] = await Promise.all([
-    supabase.from('trades').select('*').in('session_id', sessionIds.length > 0 ? sessionIds : ['__none__']),
-    supabase.from('circuit_breaker_events').select('*').in('session_id', sessionIds.length > 0 ? sessionIds : ['__none__']),
-    supabase.from('setup_types').select('*').eq('trader_id', user.id),
-  ])
+    const sessionIds = completedSessions.map(s => s.id)
+
+    const [{ data: tradesData }, { data: cbData }, { data: stData }] = await Promise.all([
+      supabase.from('trades').select('*').in('session_id', sessionIds.length > 0 ? sessionIds : ['__none__']),
+      supabase.from('circuit_breaker_events').select('*').in('session_id', sessionIds.length > 0 ? sessionIds : ['__none__']),
+      supabase.from('setup_types').select('*').eq('trader_id', user.id),
+    ])
+    trades = tradesData ?? []
+    cbEvents = cbData ?? []
+    setupTypes = stData ?? []
+  }
 
   const analytics = computeAnalytics(
-    completedSessions ?? [],
-    trades ?? [],
-    cbEvents ?? [],
-    setupTypes as SetupType[] ?? []
+    completedSessions,
+    trades,
+    cbEvents,
+    setupTypes
   )
 
   // Best/worst day
@@ -103,7 +114,7 @@ export default async function JournalPage() {
   const bestSetup = sortedSetups[0] ?? null
 
   // Debrief streak — count consecutive sessions with debrief from most recent
-  const sorted = [...(completedSessions ?? [])].sort(
+  const sorted = [...(completedSessions)].sort(
     (a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
   )
   let streak = 0
@@ -113,11 +124,11 @@ export default async function JournalPage() {
   }
 
   // Sessions with notes (non-empty)
-  const sessionsWithNotes = (completedSessions ?? [] as Session[]).filter(
+  const sessionsWithNotes = (completedSessions as Session[]).filter(
     (s: Session) => s.debrief_responses?.notes && s.debrief_responses.notes.trim().length > 0
   ).slice(0, 5)
 
-  const hasSessions = (completedSessions ?? []).length > 0
+  const hasSessions = (completedSessions).length > 0
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">

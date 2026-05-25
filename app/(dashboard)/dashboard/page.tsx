@@ -49,53 +49,62 @@ function dllBarColor(pct: number) {
 // ─── page ────────────────────────────────────────────────────────────────────
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const isDemo = process.env.NEXT_DEMO_MODE === 'true'
+  let currentUser: { id: string; email?: string } | null = isDemo ? { id: '', email: 'demo@propguard.io' } : null
+  let accounts: PropAccount[] = []
+  let recentSessions: Session[] = []
+  let weekTradesRaw: (Trade & { created_at: string })[] = []
+  let firmRules: PropFirmRule[] = []
+  let completedSessions: { has_setup: boolean | null; debrief_responses: { followed_rules: string } | null }[] = []
 
-  if (!user) return null
+  if (!isDemo) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+    currentUser = user
 
-  const { data: accounts } = await supabase
-    .from('prop_accounts')
-    .select('*, prop_firm_rules(*)')
-    .eq('trader_id', user.id)
-    .order('created_at')
+    const { data: accts } = await supabase
+      .from('prop_accounts')
+      .select('*, prop_firm_rules(*)')
+      .eq('trader_id', user.id)
+      .order('created_at')
+    accounts = accts ?? []
 
-  const accountIds = (accounts ?? []).map((a: PropAccount) => a.id)
+    const accountIds = accounts.map((a: PropAccount) => a.id)
 
-  const { data: recentSessions } = await supabase
-    .from('sessions')
-    .select('*, prop_accounts(nickname, prop_firm_rules(name))')
-    .in('prop_account_id', accountIds.length ? accountIds : ['__none__'])
-    .order('start_time', { ascending: false })
-    .limit(5)
+    const { data: sessions } = await supabase
+      .from('sessions')
+      .select('*, prop_accounts(nickname, prop_firm_rules(name))')
+      .in('prop_account_id', accountIds.length ? accountIds : ['__none__'])
+      .order('start_time', { ascending: false })
+      .limit(5)
+    recentSessions = sessions ?? []
 
-  const weekAgo = new Date()
-  weekAgo.setDate(weekAgo.getDate() - 7)
+    const weekAgo = new Date()
+    weekAgo.setDate(weekAgo.getDate() - 7)
+    const sessionIds = recentSessions.map((s: Session) => s.id)
 
-  const sessionIds = (recentSessions ?? []).map((s: Session) => s.id)
+    const { data: trades } = await supabase
+      .from('trades')
+      .select('pnl, session_id, result, created_at')
+      .in('session_id', sessionIds.length ? sessionIds : ['__none__'])
+      .gte('created_at', weekAgo.toISOString())
+    weekTradesRaw = (trades ?? []) as (Trade & { created_at: string })[]
 
-  const { data: weekTrades } = await supabase
-    .from('trades')
-    .select('pnl, session_id, result, created_at')
-    .in('session_id', sessionIds.length ? sessionIds : ['__none__'])
-    .gte('created_at', weekAgo.toISOString())
+    const { data: rules } = await supabase
+      .from('prop_firm_rules')
+      .select('*')
+      .eq('is_custom', false)
+      .order('name')
+    firmRules = rules ?? []
 
-  const { data: firmRules } = await supabase
-    .from('prop_firm_rules')
-    .select('*')
-    .eq('is_custom', false)
-    .order('name')
-
-  // Fetch all completed sessions for PropScore
-  const { data: allCompletedSessions } = await supabase
-    .from('sessions')
-    .select('has_setup, debrief_responses')
-    .in('prop_account_id', accountIds.length ? accountIds : ['__none__'])
-    .eq('status', 'completed')
-
-  const completedSessions = allCompletedSessions ?? []
+    const { data: allCompleted } = await supabase
+      .from('sessions')
+      .select('has_setup, debrief_responses')
+      .in('prop_account_id', accountIds.length ? accountIds : ['__none__'])
+      .eq('status', 'completed')
+    completedSessions = allCompleted ?? []
+  }
 
   // PropScore: 0-100 discipline metric
   const totalCompleted = completedSessions.length
@@ -113,7 +122,7 @@ export default async function DashboardPage() {
     ? sessionsWithDebrief.length / totalCompleted
     : 0
 
-  const trades = (weekTrades ?? []) as (Trade & { created_at: string })[]
+  const trades = weekTradesRaw
   const weekPnl = trades.reduce((sum, t) => sum + (t.pnl ?? 0), 0)
   const weekWins = trades.filter((t) => t.result === 'win').length
   const winRate =
@@ -160,15 +169,15 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold text-white">
             {greeting()},{' '}
-            <span className="text-teal-400">{user.email?.split('@')[0]}</span>
+            <span className="text-teal-400">{currentUser?.email?.split('@')[0] ?? 'Trader'}</span>
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Here&apos;s what&apos;s happening with your accounts this week.
           </p>
         </div>
         <AddAccountButton
-          firmOptions={(firmRules ?? []) as PropFirmRule[]}
-          userId={user.id}
+          firmOptions={firmRules as PropFirmRule[]}
+          userId={currentUser?.id ?? ''}
         />
       </div>
 
@@ -382,8 +391,8 @@ export default async function DashboardPage() {
           <p className="text-slate-300 text-sm font-medium mb-1">No accounts yet</p>
           <p className="text-slate-500 text-xs mb-4">Add your first prop firm account to get started</p>
           <AddAccountButton
-            firmOptions={(firmRules ?? []) as PropFirmRule[]}
-            userId={user.id}
+            firmOptions={firmRules as PropFirmRule[]}
+            userId={currentUser?.id ?? ''}
           />
         </div>
       )}

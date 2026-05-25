@@ -8,13 +8,16 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const isDemo = process.env.NEXT_DEMO_MODE === 'true'
+  let user: { email?: string } | null = null
 
-  if (!user) {
-    redirect('/login')
+  if (!isDemo) {
+    const supabase = await createClient()
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+    if (!user) redirect('/login')
+  } else {
+    user = { email: 'demo@propguard.io' }
   }
 
   return (

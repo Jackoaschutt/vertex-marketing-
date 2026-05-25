@@ -534,6 +534,14 @@ function EmptyState() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function AnalyticsPage() {
+  if (process.env.NEXT_DEMO_MODE === 'true') {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <EmptyState />
+      </div>
+    )
+  }
+
   const supabase = await createClient()
   const {
     data: { user },

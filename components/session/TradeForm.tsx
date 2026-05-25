@@ -12,6 +12,18 @@ interface Props {
 const EMOTIONAL_STATES = ['Calm', 'Focused', 'Anxious', 'Frustrated', 'Euphoric', 'Greedy']
 const CONFLUENCE_OPTIONS = [0, 1, 2, 3, 4, 5]
 
+const MISTAKE_TAGS = [
+  { label: 'FOMO', color: 'bg-orange-500/15 border-orange-500/30 text-orange-400' },
+  { label: 'Revenge Trade', color: 'bg-red-500/15 border-red-500/30 text-red-400' },
+  { label: 'Oversized Position', color: 'bg-rose-500/15 border-rose-500/30 text-rose-400' },
+  { label: 'Early Entry', color: 'bg-amber-500/15 border-amber-500/30 text-amber-400' },
+  { label: 'Late Exit', color: 'bg-yellow-500/15 border-yellow-500/30 text-yellow-400' },
+  { label: 'No Stop Loss', color: 'bg-red-600/15 border-red-600/30 text-red-300' },
+  { label: 'Moving Stop', color: 'bg-violet-500/15 border-violet-500/30 text-violet-400' },
+  { label: 'Overtrading', color: 'bg-pink-500/15 border-pink-500/30 text-pink-400' },
+  { label: 'Ignored CB', color: 'bg-slate-500/15 border-slate-500/30 text-slate-400' },
+]
+
 const initialForm = {
   instrument: '',
   direction: '' as TradeDirection | '',
@@ -21,17 +33,28 @@ const initialForm = {
   confluence_count: 0,
   emotional_state: '',
   trade_story: '',
+  mistake_tags: [] as string[],
 }
 
 export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [showStory, setShowStory] = useState(false)
+  const [showMistakes, setShowMistakes] = useState(false)
   const [form, setForm] = useState(initialForm)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function toggleMistake(label: string) {
+    setForm(prev => ({
+      ...prev,
+      mistake_tags: prev.mistake_tags.includes(label)
+        ? prev.mistake_tags.filter(t => t !== label)
+        : [...prev.mistake_tags, label],
+    }))
   }
 
   const canSubmit =
@@ -60,6 +83,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
           confluence_count: form.confluence_count,
           emotional_state: form.emotional_state || null,
           trade_story: form.trade_story || null,
+          mistake_tags: form.mistake_tags,
         }),
       })
 
@@ -72,6 +96,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
       onTradeAdded(trade)
       setForm(initialForm)
       setShowStory(false)
+      setShowMistakes(false)
       setExpanded(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -84,7 +109,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
     return (
       <button
         onClick={() => setExpanded(true)}
-        className="w-full py-3 rounded-xl border-2 border-dashed border-zinc-700 text-zinc-400 hover:border-teal-600/50 hover:text-zinc-200 hover:bg-teal-950/10 transition-all text-sm font-medium"
+        className="w-full py-3 rounded-xl border-2 border-dashed border-slate-700 text-slate-400 hover:border-teal-600/50 hover:text-slate-200 hover:bg-teal-950/10 transition-all text-sm font-medium"
       >
         + Log Trade
       </button>
@@ -94,14 +119,14 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-4"
+      className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col gap-4"
     >
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-white">Log Trade</h3>
         <button
           type="button"
           onClick={() => setExpanded(false)}
-          className="text-zinc-500 hover:text-zinc-200 text-lg leading-none"
+          className="text-slate-500 hover:text-slate-200 text-lg leading-none"
         >
           &times;
         </button>
@@ -109,19 +134,19 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
 
       {/* Instrument */}
       <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">Instrument</label>
+        <label className="block text-xs text-slate-400 mb-1.5">Instrument</label>
         <input
           type="text"
           value={form.instrument}
           onChange={(e) => set('instrument', e.target.value)}
           placeholder="NQ, ES, CL..."
-          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 placeholder:text-zinc-600"
+          className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 placeholder:text-zinc-600"
         />
       </div>
 
       {/* Direction */}
       <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">Direction</label>
+        <label className="block text-xs text-slate-400 mb-1.5">Direction</label>
         <div className="flex gap-2">
           {(['long', 'short'] as TradeDirection[]).map((dir) => (
             <button
@@ -133,7 +158,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
                   ? dir === 'long'
                     ? 'bg-emerald-700 border-emerald-600 text-white'
                     : 'bg-red-700 border-red-600 text-white'
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-zinc-500'
               }`}
             >
               {dir === 'long' ? 'Long' : 'Short'}
@@ -144,7 +169,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
 
       {/* Result */}
       <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">Result</label>
+        <label className="block text-xs text-slate-400 mb-1.5">Result</label>
         <div className="flex gap-2">
           {(['win', 'loss', 'breakeven'] as TradeResult[]).map((r) => (
             <button
@@ -157,8 +182,8 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
                     ? 'bg-emerald-700 border-emerald-600 text-white'
                     : r === 'loss'
                     ? 'bg-red-700 border-red-600 text-white'
-                    : 'bg-zinc-600 border-zinc-500 text-white'
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                    : 'bg-slate-600 border-zinc-500 text-white'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-zinc-500'
               }`}
             >
               {r === 'breakeven' ? 'BE' : r}
@@ -169,25 +194,25 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
 
       {/* P&L */}
       <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">P&amp;L ($)</label>
+        <label className="block text-xs text-slate-400 mb-1.5">P&amp;L ($)</label>
         <input
           type="number"
           step="any"
           value={form.pnl}
           onChange={(e) => set('pnl', e.target.value)}
           placeholder="-250 for a loss, 350 for a win"
-          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 placeholder:text-zinc-600"
+          className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 placeholder:text-zinc-600"
         />
       </div>
 
       {/* Setup type */}
       {setupTypes.length > 0 && (
         <div>
-          <label className="block text-xs text-zinc-400 mb-1.5">Setup Type (optional)</label>
+          <label className="block text-xs text-slate-400 mb-1.5">Setup Type (optional)</label>
           <select
             value={form.setup_type_id}
             onChange={(e) => set('setup_type_id', e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+            className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
           >
             <option value="">None</option>
             {setupTypes.map((s) => (
@@ -201,7 +226,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
 
       {/* Confluence count */}
       <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">Confluence Count</label>
+        <label className="block text-xs text-slate-400 mb-1.5">Confluence Count</label>
         <div className="flex gap-1.5">
           {CONFLUENCE_OPTIONS.map((n) => (
             <button
@@ -211,7 +236,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
               className={`w-9 h-9 rounded-lg text-sm font-semibold transition-colors border ${
                 form.confluence_count === n
                   ? 'bg-teal-700 border-teal-600 text-white'
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-zinc-500'
               }`}
             >
               {n}
@@ -222,7 +247,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
 
       {/* Emotional state */}
       <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">Emotional State</label>
+        <label className="block text-xs text-slate-400 mb-1.5">Emotional State</label>
         <div className="flex flex-wrap gap-1.5">
           {EMOTIONAL_STATES.map((state) => (
             <button
@@ -232,7 +257,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
                 form.emotional_state === state
                   ? 'bg-teal-700 border-teal-600 text-white'
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-zinc-500'
               }`}
             >
               {state}
@@ -240,6 +265,50 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
           ))}
         </div>
       </div>
+
+      {/* Mistake tags */}
+      {!showMistakes ? (
+        <button
+          type="button"
+          onClick={() => setShowMistakes(true)}
+          className="text-xs text-amber-400/70 hover:text-amber-400 text-left"
+        >
+          + Tag a mistake (optional)
+        </button>
+      ) : (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs text-slate-400">Mistake Tags</label>
+            {form.mistake_tags.length > 0 && (
+              <span className="text-xs text-amber-400">{form.mistake_tags.length} tagged</span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {MISTAKE_TAGS.map(({ label, color }) => {
+              const active = form.mistake_tags.includes(label)
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => toggleMistake(label)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
+                    active
+                      ? color + ' opacity-100 scale-105'
+                      : 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-600'
+                  }`}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+          {form.mistake_tags.length > 0 && (
+            <p className="text-xs text-amber-400/60 mt-2">
+              These mistakes will be tracked in your analytics to show their total cost.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Trade story toggle */}
       {!showStory ? (
@@ -252,13 +321,13 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
         </button>
       ) : (
         <div>
-          <label className="block text-xs text-zinc-400 mb-1.5">Trade Story (optional)</label>
+          <label className="block text-xs text-slate-400 mb-1.5">Trade Story (optional)</label>
           <textarea
             value={form.trade_story}
             onChange={(e) => set('trade_story', e.target.value)}
             placeholder="What happened? What were you thinking?"
             rows={3}
-            className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 placeholder:text-zinc-600 resize-none"
+            className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 placeholder:text-zinc-600 resize-none"
           />
         </div>
       )}

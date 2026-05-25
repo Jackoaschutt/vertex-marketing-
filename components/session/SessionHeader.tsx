@@ -42,10 +42,10 @@ export default function SessionHeader({ session, account, onEndSession }: Props)
     : 'SESSION'
 
   return (
-    <div className="bg-zinc-950 border-b border-zinc-800 px-6 py-3 flex items-center justify-between">
+    <div className="bg-[#0b0f1a] border-b border-slate-800 px-6 py-3 flex items-center justify-between">
       <div className="flex flex-col">
         <span className="text-sm font-semibold text-white">{account.nickname}</span>
-        <span className="text-xs text-zinc-400">{account.prop_firm_rules?.name ?? 'Custom Rules'}</span>
+        <span className="text-xs text-slate-400">{account.prop_firm_rules?.name ?? 'Custom Rules'}</span>
       </div>
 
       <div className="flex items-center gap-3">

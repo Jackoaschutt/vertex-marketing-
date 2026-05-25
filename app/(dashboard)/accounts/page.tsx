@@ -31,25 +31,29 @@ const STATUS_CONFIG: Record<
     borderColor: string
     badgeClass: string
     countBadgeClass: string
+    glowClass: string
   }
 > = {
   active: {
     label: 'Active',
-    borderColor: 'border-teal-500',
-    badgeClass: 'bg-teal-950 text-teal-300 border border-teal-800/40',
-    countBadgeClass: 'bg-teal-950 text-teal-400',
+    borderColor: 'border-teal-500/50',
+    badgeClass: 'bg-teal-500/10 text-teal-400 border border-teal-500/20',
+    countBadgeClass: 'bg-teal-500/10 text-teal-400',
+    glowClass: 'bg-teal-500/15',
   },
   passed: {
     label: 'Passed',
-    borderColor: 'border-emerald-500',
-    badgeClass: 'bg-emerald-950 text-emerald-400 border border-emerald-800/40',
-    countBadgeClass: 'bg-emerald-950 text-emerald-400',
+    borderColor: 'border-emerald-500/50',
+    badgeClass: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+    countBadgeClass: 'bg-emerald-500/10 text-emerald-400',
+    glowClass: 'bg-emerald-500/15',
   },
   failed: {
     label: 'Failed',
-    borderColor: 'border-red-500',
-    badgeClass: 'bg-red-950 text-red-400 border border-red-800/40',
-    countBadgeClass: 'bg-red-950 text-red-400',
+    borderColor: 'border-red-500/50',
+    badgeClass: 'bg-red-500/10 text-red-400 border border-red-500/20',
+    countBadgeClass: 'bg-red-500/10 text-red-400',
+    glowClass: 'bg-red-500/15',
   },
 }
 
@@ -63,52 +67,54 @@ function AccountCard({ account }: { account: PropAccount }) {
 
   return (
     <div
-      className={`bg-zinc-900 border border-zinc-800 rounded-xl p-5 border-l-4 ${cfg.borderColor} hover:border-zinc-700 transition-colors`}
+      className={`relative bg-gradient-to-br from-[#0d1526] to-[#0a1018] border ${cfg.borderColor} rounded-2xl p-5 overflow-hidden hover:border-teal-500/60 transition-colors`}
     >
+      <div className={`absolute -bottom-6 -right-6 w-28 h-28 ${cfg.glowClass} rounded-full blur-2xl pointer-events-none`} />
+
       <div className="flex items-center justify-between mb-1">
-        <span className="font-semibold text-lg text-white">{account.nickname}</span>
-        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.badgeClass}`}>
+        <span className="font-semibold text-base text-white">{account.nickname}</span>
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.badgeClass}`}>
           {cfg.label}
         </span>
       </div>
 
       {firm && (
-        <p className="text-zinc-400 text-sm mb-3">{firm.name}</p>
+        <p className="text-slate-500 text-xs mb-4">{firm.name}</p>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        <div>
-          <p className="text-xs text-zinc-500 mb-0.5">Starting Balance</p>
-          <p className="text-sm font-medium text-white">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
+        <div className="bg-slate-800/40 rounded-lg px-3 py-2">
+          <p className="text-xs text-slate-500 mb-0.5">Starting</p>
+          <p className="text-sm font-semibold text-white font-mono">
             {formatCurrency(account.starting_balance)}
           </p>
         </div>
-        <div>
-          <p className="text-xs text-zinc-500 mb-0.5">Current Balance</p>
+        <div className="bg-slate-800/40 rounded-lg px-3 py-2">
+          <p className="text-xs text-slate-500 mb-0.5">Current</p>
           <p
-            className={`text-sm font-medium ${
+            className={`text-sm font-semibold font-mono ${
               balanceUp ? 'text-emerald-400' : 'text-red-400'
             }`}
           >
             {formatCurrency(account.current_balance)}
           </p>
         </div>
-        <div>
-          <p className="text-xs text-zinc-500 mb-0.5">DLL</p>
-          <p className="text-sm font-medium text-white">
-            {firm ? formatCurrency(firm.dll_amount) + '/day' : '—'}
+        <div className="bg-slate-800/40 rounded-lg px-3 py-2">
+          <p className="text-xs text-slate-500 mb-0.5">DLL</p>
+          <p className="text-sm font-semibold text-white font-mono">
+            {firm ? formatCurrency(firm.dll_amount) : '—'}
           </p>
         </div>
-        <div>
-          <p className="text-xs text-zinc-500 mb-0.5">Profit Target</p>
-          <p className="text-sm font-medium text-white">
+        <div className="bg-slate-800/40 rounded-lg px-3 py-2">
+          <p className="text-xs text-slate-500 mb-0.5">Target</p>
+          <p className="text-sm font-semibold text-white font-mono">
             {firm ? formatCurrency(firm.profit_target) : '—'}
           </p>
         </div>
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-500">
+        <span className="text-xs text-slate-600">
           Created {formatDate(account.created_at)}
         </span>
         <Link
@@ -145,7 +151,7 @@ function AccountSection({
       </div>
 
       {accounts.length === 0 ? (
-        <p className="text-sm text-zinc-500">No {cfg.label.toLowerCase()} accounts.</p>
+        <p className="text-sm text-slate-500">No {cfg.label.toLowerCase()} accounts.</p>
       ) : (
         <div className="space-y-3">
           {accounts.map((account) => (
@@ -187,13 +193,13 @@ export default async function AccountsPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Prop Accounts</h1>
-          <p className="text-zinc-500 text-sm mt-1">
+          <p className="text-slate-500 text-sm mt-1">
             {allAccounts.length} account{allAccounts.length !== 1 ? 's' : ''} total
           </p>
         </div>
         <Link
           href="/dashboard"
-          className="px-4 py-2 rounded-lg text-sm font-semibold bg-teal-600 hover:bg-teal-500 text-white transition-colors"
+          className="px-4 py-2 rounded-lg text-sm font-semibold bg-teal-500 hover:bg-teal-400 text-white transition-colors shadow-lg shadow-teal-500/20"
         >
           + Add Account
         </Link>

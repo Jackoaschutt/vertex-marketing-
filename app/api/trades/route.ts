@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
     emotional_state,
     contract_size,
     trade_story,
+    mistake_tags,
   } = body
 
   // Verify session belongs to user (join through prop_accounts)
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
       emotional_state,
       contract_size: contract_size ?? 1,
       trade_story,
+      mistake_tags: Array.isArray(mistake_tags) ? mistake_tags : [],
     })
     .select()
     .single()
@@ -62,7 +64,7 @@ export async function PATCH(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id, ...updates } = await req.json()
-  const allowed = ['instrument', 'direction', 'result', 'pnl', 'setup_type_id', 'confluence_count', 'emotional_state', 'contract_size', 'trade_story']
+  const allowed = ['instrument', 'direction', 'result', 'pnl', 'setup_type_id', 'confluence_count', 'emotional_state', 'contract_size', 'trade_story', 'mistake_tags']
   const filtered = Object.fromEntries(Object.entries(updates).filter(([k]) => allowed.includes(k)))
 
   const { data, error } = await supabase

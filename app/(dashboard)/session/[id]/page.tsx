@@ -122,7 +122,7 @@ export default function SessionPage() {
   if (!session || !account) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-zinc-400 text-sm">Session not found.</div>
+        <div className="text-slate-400 text-sm">Session not found.</div>
       </div>
     )
   }
@@ -144,16 +144,16 @@ export default function SessionPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Left column: Gauge */}
           <div className="flex flex-col gap-4">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-              <h2 className="text-xs text-zinc-400 uppercase tracking-wider font-semibold mb-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              <h2 className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-4">
                 Session P&amp;L
               </h2>
               <PnlGauge pnl={effectivePnl} dllAmount={dllAmount} />
             </div>
 
             {cbEvents.length > 0 && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-                <h3 className="text-xs text-zinc-400 uppercase tracking-wider font-semibold mb-3">
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                <h3 className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-3">
                   Circuit Breaker Events
                 </h3>
                 <div className="flex flex-col gap-2">
@@ -167,7 +167,7 @@ export default function SessionPage() {
                       }`}
                     >
                       <span className="font-semibold">{ev.threshold_pct}% DLL Triggered</span>
-                      <span className="text-zinc-500 font-mono">
+                      <span className="text-slate-500 font-mono">
                         {new Date(ev.triggered_at).toLocaleTimeString([], {
                           hour: '2-digit',
                           minute: '2-digit',
@@ -182,8 +182,8 @@ export default function SessionPage() {
 
           {/* Right column: Trades */}
           <div className="flex flex-col gap-4">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-              <h2 className="text-xs text-zinc-400 uppercase tracking-wider font-semibold mb-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              <h2 className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-4">
                 Trades
               </h2>
               <TradeList trades={trades} />

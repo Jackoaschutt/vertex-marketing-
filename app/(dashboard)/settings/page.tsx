@@ -237,7 +237,8 @@ function SetupTypesTab({
 
 function TradingTab({ trader }: { trader: Trader }) {
   const [username, setUsername] = useState(trader.tradovate_username ?? '')
-  const [password, setPassword] = useState(trader.tradovate_password ?? '')
+  const [password, setPassword] = useState('')
+  const [connected, setConnected] = useState(trader.tradovate_connected)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState('')
@@ -253,10 +254,13 @@ function TradingTab({ trader }: { trader: Trader }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tradovate_username: username,
-          tradovate_password: password,
+          ...(password ? { tradovate_password: password } : {}),
         }),
       })
       if (!res.ok) throw new Error('Failed to save')
+      const { trader: updated } = await res.json()
+      setConnected(updated?.tradovate_connected ?? connected)
+      setPassword('')
       setSuccess('Credentials saved successfully.')
     } catch {
       setError('Could not save credentials. Please try again.')
@@ -289,7 +293,7 @@ function TradingTab({ trader }: { trader: Trader }) {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder={connected ? 'Saved — enter a new password to change' : '••••••••'}
                 className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white w-full focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30 text-sm placeholder-slate-500 pr-16"
               />
               <button
@@ -300,6 +304,9 @@ function TradingTab({ trader }: { trader: Trader }) {
                 {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
+            {connected && (
+              <p className="text-xs text-emerald-400 mt-1.5">Tradovate credentials connected.</p>
+            )}
           </div>
 
           <SaveButton onClick={handleSave} loading={loading} label="Save Credentials" />
@@ -490,8 +497,8 @@ export default function SettingsPage() {
 
       if (!user) return
 
-      const [{ data: traderData }, { data: setupTypesData }] = await Promise.all([
-        supabase.from('traders').select('*').eq('id', user.id).single(),
+      const [traderRes, { data: setupTypesData }] = await Promise.all([
+        fetch('/api/trader').then((r) => r.json()),
         supabase
           .from('setup_types')
           .select('*')
@@ -499,7 +506,7 @@ export default function SettingsPage() {
           .order('created_at'),
       ])
 
-      setTrader(traderData)
+      setTrader(traderRes.trader)
       setSetupTypes(setupTypesData ?? [])
       setLoading(false)
     }

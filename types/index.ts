@@ -17,7 +17,7 @@ export interface Trader {
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
   tradovate_username: string | null
-  tradovate_password: string | null
+  tradovate_connected: boolean
   updated_at: string
 }
 

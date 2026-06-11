@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 // POST /api/squad/leave — leave your current squad
 export async function POST() {
@@ -7,7 +7,9 @@ export async function POST() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { error } = await supabase
+  const db = await createServiceClient()
+
+  const { error } = await db
     .from('squad_members')
     .delete()
     .eq('trader_id', user.id)

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import type { Squad, SquadPost, SquadComment, SquadReaction } from '@/types'
 import SquadOnboarding from './SquadOnboarding'
 import SquadHeader from './SquadHeader'
@@ -10,7 +10,9 @@ export default async function SquadHubPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: membership } = await supabase
+  const db = await createServiceClient()
+
+  const { data: membership } = await db
     .from('squad_members')
     .select('squad_id')
     .eq('trader_id', user.id)
@@ -32,9 +34,9 @@ export default async function SquadHubPage() {
   }
 
   const [{ data: squad }, { count: memberCount }, { data: posts }] = await Promise.all([
-    supabase.from('squads').select('*').eq('id', membership.squad_id).single(),
-    supabase.from('squad_members').select('*', { count: 'exact', head: true }).eq('squad_id', membership.squad_id),
-    supabase
+    db.from('squads').select('*').eq('id', membership.squad_id).single(),
+    db.from('squad_members').select('*', { count: 'exact', head: true }).eq('squad_id', membership.squad_id),
+    db
       .from('squad_posts')
       .select('*')
       .eq('squad_id', membership.squad_id)
@@ -45,12 +47,12 @@ export default async function SquadHubPage() {
   const postIds = (posts ?? []).map((p) => p.id)
 
   const [{ data: comments }, { data: reactions }] = await Promise.all([
-    supabase
+    db
       .from('squad_comments')
       .select('*')
       .in('post_id', postIds.length > 0 ? postIds : ['__none__'])
       .order('created_at', { ascending: true }),
-    supabase
+    db
       .from('squad_reactions')
       .select('*')
       .in('post_id', postIds.length > 0 ? postIds : ['__none__']),

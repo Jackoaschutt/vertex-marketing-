@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 // POST /api/squad/comments — add a comment to a squad post
 export async function POST(req: NextRequest) {
@@ -12,7 +12,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'post_id and body are required' }, { status: 400 })
   }
 
-  const { data, error } = await supabase
+  const db = await createServiceClient()
+
+  const { data, error } = await db
     .from('squad_comments')
     .insert({ post_id, trader_id: user.id, body: text.trim() })
     .select()

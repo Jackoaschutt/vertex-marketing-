@@ -35,13 +35,7 @@ export async function POST(req: NextRequest) {
 
     if (data) squad = data
     else if (error && !error.message.includes('invite_code')) {
-      return NextResponse.json({
-        error: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-        hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-      }, { status: 500 })
+      return NextResponse.json({ error: error.message, code: error.code }, { status: 500 })
     }
   }
 

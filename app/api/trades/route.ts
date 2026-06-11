@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 // POST /api/trades — log a new trade
 export async function POST(req: NextRequest) {
@@ -55,14 +55,15 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Auto-post to the trader's Squad Hub feed (if they're in a squad) so others can spot patterns
-  const { data: membership } = await supabase
+  const db = await createServiceClient()
+  const { data: membership } = await db
     .from('squad_members')
     .select('squad_id')
     .eq('trader_id', user.id)
     .maybeSingle()
 
   if (membership) {
-    await supabase.from('squad_posts').insert({
+    await db.from('squad_posts').insert({
       trader_id: user.id,
       trade_id: trade.id,
       squad_id: membership.squad_id,

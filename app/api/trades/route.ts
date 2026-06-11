@@ -54,19 +54,28 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Auto-post to the Squad Hub feed so other traders can spot patterns
-  await supabase.from('squad_posts').insert({
-    trader_id: user.id,
-    trade_id: trade.id,
-    instrument,
-    direction,
-    result,
-    pnl,
-    confluence_count: confluence_count ?? 0,
-    emotional_state,
-    mistake_tags: Array.isArray(mistake_tags) ? mistake_tags : [],
-    trade_story,
-  })
+  // Auto-post to the trader's Squad Hub feed (if they're in a squad) so others can spot patterns
+  const { data: membership } = await supabase
+    .from('squad_members')
+    .select('squad_id')
+    .eq('trader_id', user.id)
+    .maybeSingle()
+
+  if (membership) {
+    await supabase.from('squad_posts').insert({
+      trader_id: user.id,
+      trade_id: trade.id,
+      squad_id: membership.squad_id,
+      instrument,
+      direction,
+      result,
+      pnl,
+      confluence_count: confluence_count ?? 0,
+      emotional_state,
+      mistake_tags: Array.isArray(mistake_tags) ? mistake_tags : [],
+      trade_story,
+    })
+  }
 
   return NextResponse.json({ trade }, { status: 201 })
 }

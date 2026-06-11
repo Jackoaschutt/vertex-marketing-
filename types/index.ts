@@ -157,10 +157,25 @@ export interface AnalyticsSummary {
 }
 
 // Squad Hub
+export interface Squad {
+  id: string
+  name: string
+  invite_code: string
+  owner_id: string
+  created_at: string
+}
+
+export interface SquadMember {
+  squad_id: string
+  trader_id: string
+  joined_at: string
+}
+
 export interface SquadPost {
   id: string
   trader_id: string
   trade_id: string | null
+  squad_id: string
   instrument: string
   direction: TradeDirection
   result: TradeResult

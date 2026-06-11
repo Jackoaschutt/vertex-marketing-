@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { decrypt } from '@/lib/crypto'
 
 // GET /api/tradovate/pnl — attempt Tradovate P&L fetch via live then demo endpoint
 export async function GET(_req: NextRequest) {
@@ -17,9 +18,16 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({ pnl: 0, source: 'unavailable' })
   }
 
+  let password: string
+  try {
+    password = decrypt(trader.tradovate_password)
+  } catch {
+    return NextResponse.json({ pnl: 0, source: 'unavailable' })
+  }
+
   const creds = {
     name: trader.tradovate_username,
-    password: trader.tradovate_password,
+    password,
     appId: 'PropGuard',
     appVersion: '1.0',
     cid: 0,

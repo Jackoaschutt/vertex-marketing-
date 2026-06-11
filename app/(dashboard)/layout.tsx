@@ -17,6 +17,20 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
+  const { data: trader } = await supabase
+    .from('traders')
+    .select('subscription_status, trial_ends_at')
+    .eq('id', user.id)
+    .single()
+
+  const hasAccess =
+    trader?.subscription_status === 'active' ||
+    (trader?.subscription_status === 'trialing' && new Date(trader.trial_ends_at) > new Date())
+
+  if (!hasAccess) {
+    redirect('/paywall')
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#0b0f1a]">
       {/* Sidebar */}

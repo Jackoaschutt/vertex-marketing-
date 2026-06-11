@@ -17,7 +17,7 @@ export interface Trader {
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
   tradovate_username: string | null
-  tradovate_password: string | null
+  tradovate_connected: boolean
   updated_at: string
 }
 
@@ -154,6 +154,38 @@ export interface AnalyticsSummary {
   pnl_by_day_of_week: DayOfWeekStats[]
   mistake_stats: MistakeStat[]
   mistake_total_cost: number
+}
+
+// Squad Hub
+export interface SquadPost {
+  id: string
+  trader_id: string
+  trade_id: string | null
+  instrument: string
+  direction: TradeDirection
+  result: TradeResult
+  pnl: number
+  confluence_count: number
+  emotional_state: string | null
+  mistake_tags: string[]
+  trade_story: string | null
+  created_at: string
+}
+
+export interface SquadComment {
+  id: string
+  post_id: string
+  trader_id: string
+  body: string
+  created_at: string
+}
+
+export interface SquadReaction {
+  id: string
+  post_id: string
+  trader_id: string
+  emoji: string
+  created_at: string
 }
 
 // P&L state for circuit breaker

@@ -26,7 +26,7 @@ export default function SquadOnboarding() {
       router.refresh()
     } else {
       const body = await res.json()
-      setError(body.error ? `${body.error} | code=${body.code} keyPresent=${body.keyPresent} keyRole=${body.keyRole}` : 'Something went wrong')
+      setError(body.error ? `${body.error} | code=${body.code} keyPresent=${body.keyPresent} keyRole=${body.keyRole} keyPrefix=${body.keyPrefix}` : 'Something went wrong')
       setLoading(false)
     }
   }

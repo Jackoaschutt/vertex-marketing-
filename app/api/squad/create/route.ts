@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         const payload = key?.split('.')[1]
         keyRole = payload ? JSON.parse(Buffer.from(payload, 'base64').toString()).role : null
       } catch {}
-      return NextResponse.json({ error: error.message, code: error.code, keyPresent: !!key, keyRole }, { status: 500 })
+      return NextResponse.json({ error: error.message, code: error.code, keyPresent: !!key, keyRole, keyPrefix: key?.slice(0, 14) }, { status: 500 })
     }
   }
 

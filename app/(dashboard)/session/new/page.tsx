@@ -123,10 +123,9 @@ export default function NewSessionPage() {
       })
       if (!res.ok) {
         const data = await res.json()
-        if (res.status === 409 && data.error?.includes('Active session')) {
-          const check = await fetch(`/api/sessions?account_id=${accountId}`)
-          const { session } = await check.json()
-          if (session?.id) { router.push(`/session/${session.id}`); return }
+        if (res.status === 409 && data.session?.id) {
+          router.push(`/session/${data.session.id}`)
+          return
         }
         throw new Error(data.error ?? 'Failed to start session')
       }

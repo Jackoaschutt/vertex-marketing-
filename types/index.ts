@@ -88,6 +88,7 @@ export interface Trade {
   contract_size: number
   trade_story: string | null
   mistake_tags: string[]
+  screenshot_url: string | null
   created_at: string
   setup_types?: SetupType
 }
@@ -184,6 +185,7 @@ export interface SquadPost {
   emotional_state: string | null
   mistake_tags: string[]
   trade_story: string | null
+  screenshot_url: string | null
   created_at: string
 }
 

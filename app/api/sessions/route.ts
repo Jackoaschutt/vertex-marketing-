@@ -10,14 +10,15 @@ export async function GET(req: NextRequest) {
   const accountId = req.nextUrl.searchParams.get('account_id')
   if (!accountId) return NextResponse.json({ session: null })
 
-  const { data: session } = await supabase
+  const { data: sessions } = await supabase
     .from('sessions')
     .select('id, start_time, trading_session')
     .eq('prop_account_id', accountId)
     .eq('status', 'active')
-    .single()
+    .order('start_time', { ascending: false })
+    .limit(1)
 
-  return NextResponse.json({ session: session ?? null })
+  return NextResponse.json({ session: sessions?.[0] ?? null })
 }
 
 // POST /api/sessions — create a new session
@@ -48,8 +49,8 @@ export async function POST(req: NextRequest) {
     .select('id')
     .eq('prop_account_id', prop_account_id)
     .eq('status', 'active')
-    .single()
-  if (existing) return NextResponse.json({ error: 'Active session already exists' }, { status: 409 })
+    .limit(1)
+  if (existing && existing.length > 0) return NextResponse.json({ error: 'Active session already exists' }, { status: 409 })
 
   // Create session
   const { data: session, error } = await supabase

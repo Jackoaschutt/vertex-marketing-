@@ -21,7 +21,9 @@ export default function LoginPage() {
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
     if (authError) {
-      setError('Invalid email or password')
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      setError(`${authError.message} | status=${authError.status} | url=${url} | anonPrefix=${anon?.slice(0, 14)}`)
       setLoading(false)
       return
     }

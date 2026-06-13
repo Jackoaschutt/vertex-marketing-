@@ -158,6 +158,17 @@ export default function SquadFeed({
               </div>
             )}
 
+            {/* Chart screenshot */}
+            {post.screenshot_url && (
+              <a href={post.screenshot_url} target="_blank" rel="noopener noreferrer" className="block mb-3">
+                <img
+                  src={post.screenshot_url}
+                  alt={`${post.instrument} chart`}
+                  className="w-full max-h-80 object-contain rounded-xl border border-slate-800/60 bg-black/20"
+                />
+              </a>
+            )}
+
             {/* Trade story */}
             {post.trade_story && (
               <p className="text-sm text-slate-400 leading-relaxed mb-3 bg-white/[0.02] border border-slate-800/60 rounded-xl px-3 py-2">

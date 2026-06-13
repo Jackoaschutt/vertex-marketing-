@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { Trade, SetupType, TradeDirection, TradeResult } from '@/types'
+import { createClient } from '@/lib/supabase/client'
 
 interface Props {
   sessionId: string
@@ -43,9 +44,38 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
   const [form, setForm] = useState(initialForm)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function handleScreenshotChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setError(null)
+
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop()
+      const path = `${sessionId}/${Date.now()}.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('trade-screenshots')
+        .upload(path, file)
+
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage.from('trade-screenshots').getPublicUrl(path)
+      setScreenshotUrl(data.publicUrl)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload screenshot')
+    } finally {
+      setUploading(false)
+    }
   }
 
   function toggleMistake(label: string) {
@@ -84,6 +114,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
           emotional_state: form.emotional_state || null,
           trade_story: form.trade_story || null,
           mistake_tags: form.mistake_tags,
+          screenshot_url: screenshotUrl,
         }),
       })
 
@@ -95,6 +126,7 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
       const { trade } = await res.json()
       onTradeAdded(trade)
       setForm(initialForm)
+      setScreenshotUrl(null)
       setShowStory(false)
       setShowMistakes(false)
       setExpanded(false)
@@ -309,6 +341,28 @@ export default function TradeForm({ sessionId, setupTypes, onTradeAdded }: Props
           )}
         </div>
       )}
+
+      {/* Chart screenshot */}
+      <div>
+        <label className="block text-xs text-slate-400 mb-1.5">Chart Screenshot (optional)</label>
+        {screenshotUrl ? (
+          <div className="relative">
+            <img src={screenshotUrl} alt="Trade chart" className="w-full max-h-48 object-contain rounded-lg border border-slate-700" />
+            <button
+              type="button"
+              onClick={() => setScreenshotUrl(null)}
+              className="absolute top-1.5 right-1.5 bg-slate-900/80 hover:bg-slate-900 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center"
+            >
+              &times;
+            </button>
+          </div>
+        ) : (
+          <label className="flex items-center justify-center w-full py-3 rounded-lg border border-dashed border-slate-700 text-xs text-slate-400 hover:border-teal-600/50 hover:text-slate-200 cursor-pointer transition-colors">
+            {uploading ? 'Uploading...' : '+ Upload chart screenshot'}
+            <input type="file" accept="image/*" onChange={handleScreenshotChange} disabled={uploading} className="hidden" />
+          </label>
+        )}
+      </div>
 
       {/* Trade story toggle */}
       {!showStory ? (

@@ -86,6 +86,13 @@ export default function TradeList({ trades }: Props) {
                     {trade.emotional_state}
                   </span>
                 )}
+
+                {/* Screenshot thumbnail */}
+                {trade.screenshot_url && (
+                  <a href={trade.screenshot_url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                    <img src={trade.screenshot_url} alt="Chart" className="w-8 h-8 object-cover rounded border border-slate-700" />
+                  </a>
+                )}
               </div>
             )
           })}

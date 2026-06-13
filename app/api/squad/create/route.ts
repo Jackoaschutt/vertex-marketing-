@@ -35,13 +35,7 @@ export async function POST(req: NextRequest) {
 
     if (data) squad = data
     else if (error && !error.message.includes('invite_code')) {
-      const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-      let keyRole: string | null = null
-      try {
-        const payload = key?.split('.')[1]
-        keyRole = payload ? JSON.parse(Buffer.from(payload, 'base64').toString()).role : null
-      } catch {}
-      return NextResponse.json({ error: error.message, code: error.code, keyPresent: !!key, keyRole, keyPrefix: key?.slice(0, 14) }, { status: 500 })
+      return NextResponse.json({ error: error.message, code: error.code }, { status: 500 })
     }
   }
 

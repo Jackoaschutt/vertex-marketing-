@@ -12,13 +12,13 @@ export async function GET(req: NextRequest) {
 
   const { data: sessions } = await supabase
     .from('sessions')
-    .select('id, start_time, trading_session')
+    .select('id, start_time, trading_session, status')
     .eq('prop_account_id', accountId)
-    .eq('status', 'active')
     .order('start_time', { ascending: false })
     .limit(1)
 
-  return NextResponse.json({ session: sessions?.[0] ?? null })
+  const session = sessions?.[0]
+  return NextResponse.json({ session: session?.status === 'active' ? session : null })
 }
 
 // POST /api/sessions — create a new session
@@ -43,14 +43,18 @@ export async function POST(req: NextRequest) {
     .single()
   if (!account) return NextResponse.json({ error: 'Account not found' }, { status: 404 })
 
-  // Check no active session exists
+  // Check for an existing session (any status) on this account
   const { data: existing } = await supabase
     .from('sessions')
-    .select('id')
+    .select('id, status')
     .eq('prop_account_id', prop_account_id)
-    .eq('status', 'active')
+    .order('start_time', { ascending: false })
     .limit(1)
-  if (existing && existing.length > 0) return NextResponse.json({ error: 'Active session already exists' }, { status: 409 })
+
+  const existingSession = existing?.[0]
+  if (existingSession?.status === 'active') {
+    return NextResponse.json({ error: 'Active session already exists', session: existingSession }, { status: 409 })
+  }
 
   // Create session
   const { data: session, error } = await supabase
@@ -61,7 +65,7 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     if (error.code === '23505') {
-      return NextResponse.json({ error: 'Active session already exists' }, { status: 409 })
+      return NextResponse.json({ error: 'Active session already exists', session: existingSession ?? null }, { status: 409 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

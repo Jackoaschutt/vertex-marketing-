@@ -1,0 +1,33 @@
+COLUMN REFERENCE - Capital Transport North Brisbane Leads Sheet
+,,,,,,,,,,,,,,,,,,,,,,
+COLUMN,VALID VALUES / NOTES
+Lead ID,CT-001 to CT-999 (auto-increment)
+Lead Status,New | Contacted | Qualified | Proposal Sent | Negotiating | Won | Lost | On Hold
+Priority,High | Medium | Low
+Service Required,Same Day Delivery | Next Day Delivery | Scheduled Runs | Bulk Freight | Refrigerated Transport | Courier | Warehousing | Interstate Freight
+Est. Shipment Frequency,Daily | 2-3x Per Week | Weekly | Fortnightly | Monthly | Ad Hoc
+Lead Source,Cold Call | Referral | Website | LinkedIn | Trade Show | Existing Customer | Google Ads | Walk-In | Other
+Industry / Business Type,Manufacturing | Retail / Wholesale | Construction | Healthcare | Food & Beverage | Agriculture | Mining & Resources | Logistics | Government | Other
+State,QLD (all leads in North Brisbane)
+,,
+NORTH BRISBANE SUBURB POSTCODES,,
+Suburb,Postcode
+Aspley,4034
+Bracken Ridge,4017
+Brendale,4500
+Burpengary,4505
+Caboolture,4510
+Chermside,4032
+Deception Bay,4508
+Eatons Hill,4037
+Everton Park,4053
+Kallangur,4503
+Lawnton,4501
+Mango Hill,4509
+Murrumba Downs,4503
+Narangba,4504
+North Lakes,4509
+Petrie,4502
+Redcliffe,4020
+Strathpine,4500
+Zillmere,4034

@@ -30,35 +30,23 @@ export const config = {
   get databaseConfigured(): boolean {
     return has('NEXT_PUBLIC_SUPABASE_URL') && has('SUPABASE_SERVICE_ROLE_KEY')
   },
-  get stripeConfigured(): boolean {
-    return has('STRIPE_SECRET_KEY')
-  },
-  get stripeWebhookConfigured(): boolean {
-    return has('STRIPE_COMMERCE_WEBHOOK_SECRET')
-  },
   get anthropicConfigured(): boolean {
     return has('ANTHROPIC_API_KEY')
-  },
-  get emailConfigured(): boolean {
-    return has('RESEND_API_KEY')
   },
   get cjConfigured(): boolean {
     return has('CJ_EMAIL') && has('CJ_API_KEY')
   },
-  get supplierWebhookConfigured(): boolean {
-    return has('SUPPLIER_WEBHOOK_SECRET')
-  },
   get metaConfigured(): boolean {
     return has('META_ACCESS_TOKEN') && has('META_AD_ACCOUNT_ID')
+  },
+  get serpApiConfigured(): boolean {
+    return has('SERPAPI_KEY')
   },
   get cronConfigured(): boolean {
     return has('CRON_SECRET')
   },
-  get adminEmails(): string[] {
-    return (process.env.COMMERCE_ADMIN_EMAILS ?? '')
-      .split(',')
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean)
+  get passcodeConfigured(): boolean {
+    return has('ADMIN_PASSCODE')
   },
   get currency(): string {
     return process.env.COMMERCE_CURRENCY ?? 'USD'
@@ -85,20 +73,8 @@ export function capabilities(): Capability[] {
         : 'DEMO MODE — seeded in-memory data, resets on restart. Nothing is saved.',
     },
     {
-      key: 'payments',
-      label: 'Payments (Stripe Checkout)',
-      status: config.stripeConfigured ? 'REAL' : 'TODO',
-      configured: config.stripeConfigured,
-      requires: ['STRIPE_SECRET_KEY', 'STRIPE_COMMERCE_WEBHOOK_SECRET'],
-      note: config.stripeConfigured
-        ? config.stripeWebhookConfigured
-          ? 'Checkout and webhook both configured.'
-          : 'Checkout works, but the webhook secret is missing — paid orders will not be recorded.'
-        : 'Checkout returns a clear error until STRIPE_SECRET_KEY is set.',
-    },
-    {
       key: 'ai',
-      label: 'AI content + analyst (Anthropic)',
+      label: 'AI copy + coach (Anthropic)',
       status: config.anthropicConfigured ? 'REAL' : 'MOCK',
       configured: config.anthropicConfigured,
       requires: ['ANTHROPIC_API_KEY'],
@@ -107,34 +83,14 @@ export function capabilities(): Capability[] {
         : 'Deterministic fallback generator in use. Output is badged FALLBACK.',
     },
     {
-      key: 'email',
-      label: 'Transactional email (Resend)',
-      status: config.emailConfigured ? 'REAL' : 'MOCK',
-      configured: config.emailConfigured,
-      requires: ['RESEND_API_KEY', 'COMMERCE_FROM_EMAIL'],
-      note: config.emailConfigured
-        ? 'Emails are delivered.'
-        : 'Console transport — emails are rendered and logged, never sent.',
-    },
-    {
       key: 'supplier_cj',
-      label: 'Supplier: CJdropshipping',
+      label: 'Cost lookup: CJdropshipping',
       status: config.cjConfigured ? 'REAL' : 'TODO',
       configured: config.cjConfigured,
       requires: ['CJ_EMAIL', 'CJ_API_KEY'],
       note: config.cjConfigured
-        ? 'Credentials present. Adapter is written to CJ published API shapes but has NOT been verified against a live account — place a test order before relying on it.'
-        : 'Mock supplier adapter in use. Fulfilment is simulated.',
-    },
-    {
-      key: 'supplier_webhook',
-      label: 'Supplier webhooks',
-      status: config.supplierWebhookConfigured ? 'REAL' : 'TODO',
-      configured: config.supplierWebhookConfigured,
-      requires: ['SUPPLIER_WEBHOOK_SECRET'],
-      note: config.supplierWebhookConfigured
-        ? 'Incoming supplier webhooks are HMAC-verified.'
-        : 'Endpoint rejects everything until a shared secret is set.',
+        ? 'Credentials present. Written to CJ published API shapes but never run against a live account — check one price by hand before trusting it.'
+        : 'Mock adapter in use. Costs it returns are simulated, never real.',
     },
     {
       key: 'ads',
@@ -145,6 +101,16 @@ export function capabilities(): Capability[] {
       note: config.metaConfigured
         ? 'Meta credentials present. The client is written to the documented Marketing API but has NOT been verified against a live ad account — run the status check in /ops/marketing before trusting the numbers. TikTok and Google Ads are not built; enter their spend manually.'
         : 'The Meta client is written but no credentials are set. TikTok and Google Ads are not built at all. Manual spend entry in /ops/marketing produces real figures either way.',
+    },
+    {
+      key: 'research',
+      label: 'Demand data (SerpAPI)',
+      status: config.serpApiConfigured ? 'REAL' : 'TODO',
+      configured: config.serpApiConfigured,
+      requires: ['SERPAPI_KEY'],
+      note: config.serpApiConfigured
+        ? 'Google Trends and Shopping counts are fetched live and stored with their raw payload.'
+        : 'No key, so no demand data is collected. The collector returns an error rather than inventing a trend line.',
     },
     {
       key: 'cron',
@@ -158,14 +124,13 @@ export function capabilities(): Capability[] {
     },
     {
       key: 'admin',
-      label: 'Admin access control',
-      status: config.adminEmails.length > 0 ? 'REAL' : 'TODO',
-      configured: config.adminEmails.length > 0,
-      requires: ['COMMERCE_ADMIN_EMAILS'],
-      note:
-        config.adminEmails.length > 0
-          ? `${config.adminEmails.length} address(es) allowed.`
-          : 'Allowlist is empty, so /ops denies every user. Set COMMERCE_ADMIN_EMAILS.',
+      label: 'Access control',
+      status: config.passcodeConfigured ? 'REAL' : 'TODO',
+      configured: config.passcodeConfigured,
+      requires: ['ADMIN_PASSCODE'],
+      note: config.passcodeConfigured
+        ? 'One passcode, hashed into a session cookie. Changing it logs every device out.'
+        : 'ADMIN_PASSCODE is not set, so the tool is closed to everyone including you.',
     },
   ]
 }

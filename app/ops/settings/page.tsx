@@ -16,7 +16,7 @@ export default async function OpsSettings() {
     getSetting<string>('default_currency', config.currency),
   ])
 
-  const blockers = caps.filter((c) => !c.configured && ['database', 'payments', 'email', 'admin'].includes(c.key))
+  const blockers = caps.filter((c) => !c.configured && ['database', 'admin'].includes(c.key))
 
   return (
     <div className="space-y-6">
@@ -84,20 +84,6 @@ export default async function OpsSettings() {
             <td className="py-2.5 pr-4 text-ink-900">{lowStock} units</td>
             <td className="py-2.5 pr-4 text-ink-600">Daily inventory job</td>
           </tr>
-          <tr>
-            <td className="py-2.5 pr-4 text-ink-700">Free delivery over</td>
-            <td className="py-2.5 pr-4 text-ink-900">
-              {formatMoney(brand.shipping.freeThresholdCents, currency)}
-            </td>
-            <td className="py-2.5 pr-4 text-ink-600">Cart and checkout</td>
-          </tr>
-          <tr>
-            <td className="py-2.5 pr-4 text-ink-700">Flat delivery rate</td>
-            <td className="py-2.5 pr-4 text-ink-900">
-              {formatMoney(brand.shipping.flatRateCents, currency)}
-            </td>
-            <td className="py-2.5 pr-4 text-ink-600">Cart and checkout</td>
-          </tr>
         </Table>
         <p className="mt-4 text-xs leading-relaxed text-ink-500">
           Values live in <code>ds_settings</code> (operating parameters) and{' '}
@@ -106,17 +92,17 @@ export default async function OpsSettings() {
         </p>
       </Card>
 
-      <Card title="Before taking real money">
+      <Card title="Before you rely on this">
         <ol className="list-decimal space-y-1.5 pl-5 text-sm text-ink-600">
-          <li>Create a Supabase project and run every migration, including <code>011_commerce_core.sql</code>.</li>
-          <li>Set <code>COMMERCE_ADMIN_EMAILS</code> — until then this admin denies everyone.</li>
-          <li>Set Stripe live keys and register the <em>commerce</em> webhook separately from the subscription webhook.</li>
-          <li>Replace the placeholder policy pages and legal entity details in <code>brand.ts</code>.</li>
-          <li>Connect a real supplier and place one live test order end to end.</li>
-          <li>Set <code>RESEND_API_KEY</code> so customers actually receive email.</li>
-          <li>Confirm the demo-data banner is gone — its presence means no database is connected.</li>
+          <li>Set <code>ADMIN_PASSCODE</code> — until then this tool denies everyone, including you.</li>
+          <li>Connect Supabase and run both migrations, so what you enter survives a restart.</li>
+          <li>Enter one real day in Books and check the P&amp;L matches what you expect.</li>
+          <li>Set <code>CRON_SECRET</code> so the ledger-gap job runs nightly — a hand-kept ledger fails quietly without it.</li>
+          <li>Add <code>SERPAPI_KEY</code> if you want demand scored from data rather than judgement.</li>
+          <li>Confirm the demo-data banner is gone — its presence means nothing is being saved.</li>
         </ol>
       </Card>
+
     </div>
   )
 }

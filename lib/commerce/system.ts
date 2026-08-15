@@ -187,62 +187,58 @@ export async function buildSnapshot(): Promise<SystemSnapshot> {
 
   const capBy = (key: string) => caps.find((c) => c.key === key)
   const scoredProducts = products.filter((p) => p.product_score > 0).length
+  const hasLedger = (await driver.count(TABLES.sales).catch(() => 0)) > 0
 
   const readiness: ReadinessItem[] = [
+    {
+      label: 'Passcode set',
+      ready: config.passcodeConfigured,
+      blocking: true,
+      detail: config.passcodeConfigured
+        ? 'One passcode gates everything. Changing it logs every device out.'
+        : 'ADMIN_PASSCODE is empty, so this tool is closed to everyone including you.',
+    },
     {
       label: 'Database connected',
       ready: config.databaseConfigured,
       blocking: true,
       detail: config.databaseConfigured
         ? 'Persisting to Postgres.'
-        : 'Demo mode — seeded in-memory data that resets on restart. Nothing is saved.',
+        : 'Demo mode — seeded in-memory data that resets on restart. Nothing you enter is saved.',
     },
     {
-      label: 'Admin allowlist set',
-      ready: config.adminEmails.length > 0,
+      label: 'Something in the ledger',
+      ready: hasLedger,
       blocking: true,
-      detail:
-        config.adminEmails.length > 0
-          ? `${config.adminEmails.length} address(es) allowed.`
-          : 'COMMERCE_ADMIN_EMAILS is empty, so the admin is closed to everyone.',
-    },
-    {
-      label: 'Payments configured',
-      ready: config.stripeConfigured && config.stripeWebhookConfigured,
-      blocking: true,
-      detail: !config.stripeConfigured
-        ? 'STRIPE_SECRET_KEY missing — checkout returns a clear error instead of charging.'
-        : !config.stripeWebhookConfigured
-          ? 'Checkout works but STRIPE_COMMERCE_WEBHOOK_SECRET is missing, so paid orders would never be recorded.'
-          : 'Checkout and webhook both configured.',
-    },
-    {
-      label: 'Transactional email delivers',
-      ready: config.emailConfigured,
-      blocking: true,
-      detail: config.emailConfigured
-        ? 'Emails are delivered.'
-        : 'Console transport — emails are rendered and logged but never sent. Customers would receive nothing.',
-    },
-    {
-      label: 'A real supplier is connected',
-      ready: config.cjConfigured,
-      blocking: true,
-      detail: config.cjConfigured
-        ? 'CJ credentials present. Still place one test order — the adapter is unverified against a live account.'
-        : 'Only the mock supplier is available. Fulfilment is simulated.',
+      detail: hasLedger
+        ? 'The books have entries, so every figure is computed from something real.'
+        : 'The ledger is empty, so every profit figure reads zero because nothing has been entered — not because nothing sold.',
     },
     {
       label: 'At least one candidate scored',
       ready: scoredProducts > 0,
-      blocking: true,
+      blocking: false,
       detail:
         scoredProducts > 0
           ? `${scoredProducts} candidate(s) scored.`
           : 'No candidate has been scored yet, so there is nothing to compare.',
     },
     {
-      label: 'AI content and analyst',
+      label: 'Demand data collected automatically',
+      ready: config.serpApiConfigured,
+      blocking: false,
+      detail: config.serpApiConfigured
+        ? 'SerpAPI is connected — trends and competition counts are fetched, not guessed.'
+        : 'No SERPAPI_KEY. Demand and competition are scored by hand; the collector refuses to invent a trend.',
+    },
+    {
+      label: 'Ad spend imports automatically',
+      ready: config.metaConfigured,
+      blocking: false,
+      detail: capBy('ads')?.note ?? 'Manual entry in /ops/books produces real figures either way.',
+    },
+    {
+      label: 'AI copy and coach',
       ready: config.anthropicConfigured,
       blocking: false,
       detail: config.anthropicConfigured
@@ -250,26 +246,12 @@ export async function buildSnapshot(): Promise<SystemSnapshot> {
         : 'Deterministic fallbacks in use, badged in the UI. Usable, just not model-written.',
     },
     {
-      label: 'Ad spend imports automatically',
-      ready: config.metaConfigured,
-      blocking: false,
-      detail: capBy('ads')?.note ?? 'Manual entry in /ops/marketing produces real figures either way.',
-    },
-    {
       label: 'Automations scheduled',
       ready: config.cronConfigured,
       blocking: false,
       detail: config.cronConfigured
         ? 'CRON_SECRET set — any scheduler can trigger the jobs.'
-        : 'Jobs can still be run by hand from /ops/automations.',
-    },
-    {
-      label: 'Supplier webhooks verified',
-      ready: config.supplierWebhookConfigured,
-      blocking: false,
-      detail: config.supplierWebhookConfigured
-        ? 'Inbound supplier webhooks are HMAC-verified.'
-        : 'Endpoint rejects everything until a shared secret is set. The daily poll still updates tracking.',
+        : 'Jobs can still be run by hand from /ops/automations. Without them, a gap in the ledger goes unnoticed.',
     },
   ]
 

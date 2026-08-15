@@ -1,73 +1,54 @@
 /**
- * Admin authorisation for /ops and /api/commerce admin routes.
+ * Access control for a single-operator tool.
  *
- * Two gates, both required:
- *   1. A valid Supabase session (middleware redirects anonymous users to /login)
- *   2. The session email appears in COMMERCE_ADMIN_EMAILS
+ * This used to be Supabase Auth plus an email allowlist, which made sense when
+ * the app had customers. It has one user, so that was two moving parts and an
+ * account to maintain for no benefit. It is now one passcode.
  *
- * An empty allowlist denies everyone. That is deliberate: the failure mode of a
- * misconfigured deployment must be "nobody can reach the admin", never
- * "everybody can reach the admin".
+ * How it works:
+ *   - ADMIN_PASSCODE is the only secret. It never leaves the server.
+ *   - Unlocking sets a cookie whose value is an HMAC derived from the passcode,
+ *     not the passcode itself. The cookie cannot be forged without the secret,
+ *     and changing the passcode invalidates every existing session for free.
+ *   - Comparison is constant-time, so the token cannot be recovered by timing.
+ *
+ * An unset ADMIN_PASSCODE denies everyone. That is deliberate: the failure mode
+ * of a misconfigured deployment must be "nobody gets in", never "everybody
+ * does" — this thing holds the owner's real financials.
  */
 
-import { createClient } from '@/lib/supabase/server'
-import { config } from './config'
+import { createHmac } from 'node:crypto'
+import { cookies } from 'next/headers'
+
+export const SESSION_COOKIE = 'ops_session'
+/** 30 days. Long, because re-entering a passcode daily trains you to pick a weak one. */
+export const SESSION_MAX_AGE = 60 * 60 * 24 * 30
 
 export interface AdminIdentity {
+  /** There is exactly one user. Kept as a field so event logs read naturally. */
   email: string
-  userId: string
 }
 
 export type AdminCheck =
   | { ok: true; identity: AdminIdentity }
-  | { ok: false; reason: 'unauthenticated' | 'not_allowed' | 'no_allowlist' | 'no_auth_backend' }
+  | { ok: false; reason: 'no_passcode_set' | 'locked' }
 
-export async function checkAdmin(): Promise<AdminCheck> {
-  const allowlist = config.adminEmails
-  if (allowlist.length === 0) return { ok: false, reason: 'no_allowlist' }
-
-  // Supabase Auth needs the project URL + anon key. Without them there is no
-  // session to read, so admin access cannot be granted.
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    return { ok: false, reason: 'no_auth_backend' }
-  }
-
-  try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user?.email) return { ok: false, reason: 'unauthenticated' }
-    if (!allowlist.includes(user.email.toLowerCase())) return { ok: false, reason: 'not_allowed' }
-    return { ok: true, identity: { email: user.email.toLowerCase(), userId: user.id } }
-  } catch {
-    return { ok: false, reason: 'unauthenticated' }
-  }
-}
-
-export class NotAuthorizedError extends Error {
-  constructor(readonly reason: AdminCheck extends { ok: false; reason: infer R } ? R : string) {
-    super(`Not authorised: ${String(reason)}`)
-    this.name = 'NotAuthorizedError'
-  }
-}
-
-/** Throws unless the caller is an allowlisted admin. */
-export async function requireAdmin(): Promise<AdminIdentity> {
-  const result = await checkAdmin()
-  if (!result.ok) throw new NotAuthorizedError(result.reason)
-  return result.identity
+export function isPasscodeConfigured(): boolean {
+  const p = process.env.ADMIN_PASSCODE
+  return typeof p === 'string' && p.trim().length > 0
 }
 
 /**
- * Machine authorisation for scheduled jobs.
- * Uses a constant-time comparison so the secret cannot be recovered by timing.
+ * The cookie value for the configured passcode.
+ *
+ * Derived rather than stored, so there is no session table to keep and no
+ * second secret to leak. Returns null when no passcode is configured, which
+ * makes every comparison below fail closed.
  */
-export function checkCronSecret(header: string | null): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return false
-  const provided = (header ?? '').replace(/^Bearer\s+/i, '')
-  return timingSafeEqual(provided, secret)
+export function sessionToken(): string | null {
+  const passcode = process.env.ADMIN_PASSCODE
+  if (!passcode || passcode.trim().length === 0) return null
+  return createHmac('sha256', passcode).update('ops-session-v1').digest('hex')
 }
 
 export function timingSafeEqual(a: string, b: string): boolean {
@@ -81,15 +62,55 @@ export function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0
 }
 
+/** True when the supplied passcode matches the configured one. */
+export function passcodeMatches(supplied: string): boolean {
+  const expected = process.env.ADMIN_PASSCODE
+  if (!expected || expected.trim().length === 0) return false
+  return timingSafeEqual(supplied, expected)
+}
+
+export async function checkAdmin(): Promise<AdminCheck> {
+  const expected = sessionToken()
+  if (!expected) return { ok: false, reason: 'no_passcode_set' }
+
+  const jar = await cookies()
+  const presented = jar.get(SESSION_COOKIE)?.value ?? ''
+  if (!presented || !timingSafeEqual(presented, expected)) {
+    return { ok: false, reason: 'locked' }
+  }
+  return { ok: true, identity: { email: 'owner' } }
+}
+
+export class NotAuthorizedError extends Error {
+  constructor(readonly reason: string) {
+    super(`Not authorised: ${reason}`)
+    this.name = 'NotAuthorizedError'
+  }
+}
+
+/** Throws unless the caller has unlocked. */
+export async function requireAdmin(): Promise<AdminIdentity> {
+  const result = await checkAdmin()
+  if (!result.ok) throw new NotAuthorizedError(result.reason)
+  return result.identity
+}
+
+/**
+ * Machine authorisation for scheduled jobs.
+ * Separate secret from the passcode, so a scheduler token cannot open the UI.
+ */
+export function checkCronSecret(header: string | null): boolean {
+  const secret = process.env.CRON_SECRET
+  if (!secret) return false
+  const provided = (header ?? '').replace(/^Bearer\s+/i, '')
+  return timingSafeEqual(provided, secret)
+}
+
 export function adminDeniedMessage(reason: string): string {
   switch (reason) {
-    case 'no_allowlist':
-      return 'COMMERCE_ADMIN_EMAILS is not set, so the admin area is closed to everyone. Set it to a comma-separated list of allowed email addresses and sign in with one of them.'
-    case 'no_auth_backend':
-      return 'Supabase Auth is not configured (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY), so there is no session to authorise.'
-    case 'not_allowed':
-      return 'Your account is signed in but is not on the commerce admin allowlist.'
+    case 'no_passcode_set':
+      return 'ADMIN_PASSCODE is not set, so this tool is closed to everyone. Set it in the environment and reload — it is the only credential there is.'
     default:
-      return 'Sign in with an allowlisted account to reach the commerce admin.'
+      return 'Enter your passcode to unlock.'
   }
 }

@@ -66,12 +66,7 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
           <span className="text-xs text-ink-500">{admin.identity.email}</span>
           <div className="ml-auto flex items-center gap-2">
             {config.demoMode && <Badge tone="DEMO">Demo data</Badge>}
-            <Link
-              href="/store"
-              className="rounded-full border border-ink-300 px-3 py-1.5 text-xs text-ink-700 transition hover:border-ink-900"
-            >
-              View store
-            </Link>
+
           </div>
         </div>
         <nav aria-label="Admin" className="commerce-rail mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 pb-2 sm:px-6">

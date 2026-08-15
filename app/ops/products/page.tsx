@@ -1,113 +1,131 @@
 import Link from 'next/link'
-import { config } from '@/lib/commerce/config'
-import { formatMoney, formatPercent, grossMargin } from '@/lib/commerce/money'
-import { allowedTransitions, isSellable } from '@/lib/commerce/research/scoring'
-import { listProducts, listVariantsForProducts } from '@/lib/commerce/db/repo'
+import { formatMoney, formatPercent, formatRatio, grossMargin } from '@/lib/commerce/money'
+import { computeProductPnl } from '@/lib/commerce/analytics/profit'
+import { listAdMetrics, listAllChecklistProgress, listProducts, listSales } from '@/lib/commerce/db/repo'
+import { CHECKLISTS, stageForStatus } from '@/lib/commerce/research/checklist'
 import { Badge, Card, Empty, StatusBadge, Table } from '@/components/ops/ui'
-import { ProductAdmin } from '@/components/ops/ProductAdmin'
 
 export const dynamic = 'force-dynamic'
 
 export default async function OpsProducts() {
-  const products = await listProducts({ sort: 'score' })
-  const variants = await listVariantsForProducts(products.map((p) => p.id))
+  const [products, sales, adMetrics, progress] = await Promise.all([
+    listProducts({ sort: 'score' }),
+    listSales(),
+    listAdMetrics(),
+    listAllChecklistProgress(),
+  ])
 
-  const published = products.filter((p) => p.published).length
-  const currency = config.currency
+  const pnl = computeProductPnl(products, sales, adMetrics)
+  const byId = new Map(pnl.map((p) => [p.product.id, p.summary]))
+
+  const stageProgress = (productId: string, status: (typeof products)[number]['status']) => {
+    const stage = stageForStatus(status)
+    if (!stage) return null
+    const items = CHECKLISTS[stage]
+    const done = progress.filter(
+      (p) => p.product_id === productId && p.stage === stage && p.done
+    ).length
+    return { stage, done, total: items.length }
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="commerce-display text-2xl text-ink-900">Products</h1>
-          <p className="mt-1 text-sm text-ink-600">
-            {products.length} total · {published} published
-          </p>
-        </div>
-        <Link
-          href="/ops/research"
-          className="min-h-10 rounded-full bg-ink-900 px-5 text-sm font-medium leading-10 text-sand-100"
-        >
-          Add a candidate
-        </Link>
+      <div>
+        <h1 className="commerce-display text-2xl text-ink-900">Products</h1>
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-600">
+          Every candidate you have looked at, with its rubric score, how far through its stage it
+          is, and what it has actually earned. Score and earnings are deliberately shown side by
+          side — the gap between them is the most useful thing on this page.
+        </p>
       </div>
 
       {products.length === 0 ? (
         <Empty
-          title="No products yet"
-          body="Score a candidate in the research console, then approve and publish it."
+          title="No candidates yet"
+          body="Score your first product idea in Research. It stays here through validation, testing and whatever it ends up being."
           href="/ops/research"
-          cta="Open research"
+          cta="Go to Research"
         />
       ) : (
-        <Card>
-          <Table head={['Product', 'Score', 'Status', 'Price / margin', 'Performance', 'Actions']}>
+        <Card title={`Pipeline (${products.length})`}>
+          <Table
+            head={['Product', 'Status', 'Stage', 'Score', 'Margin', 'Net', 'ROAS']}
+          >
             {products.map((p) => {
+              const s = byId.get(p.id)
+              const prog = stageProgress(p.id, p.status)
               const margin = grossMargin(p.price_cents, p.cost_cents, p.shipping_cost_cents)
-              const productVariants = variants.filter((v) => v.product_id === p.id)
-              const stock = productVariants.reduce(
-                (sum, v) => (v.stock === null ? sum : sum + v.stock),
-                0
-              )
-              const untracked = productVariants.some((v) => v.stock === null)
-
               return (
                 <tr key={p.id} className="align-top">
-                  <td className="py-3 pr-4">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-ink-900">{p.name}</span>
-                      {p.published && <Badge tone="positive">live</Badge>}
-                      {p.featured && <Badge>featured</Badge>}
-                    </div>
-                    <p className="mt-0.5 text-xs text-ink-500">
-                      /{p.slug} · {p.category ?? 'uncategorised'} ·{' '}
-                      {untracked ? 'stock untracked' : `${stock} in stock`}
-                    </p>
+                  <td className="py-2.5 pr-4">
+                    <Link
+                      href={`/ops/products/${p.id}`}
+                      className="text-ink-900 underline decoration-ink-300 underline-offset-2"
+                    >
+                      {p.name}
+                    </Link>
+                    <span className="block text-xs text-ink-500">
+                      {p.category ?? 'uncategorised'}
+                      {p.sell_channel ? ` · ${p.sell_channel}` : ''}
+                    </span>
                   </td>
-                  <td className="py-3 pr-4 tabular-nums text-ink-900">{p.product_score}</td>
-                  <td className="py-3 pr-4">
+                  <td className="py-2.5 pr-4">
                     <StatusBadge status={p.status} />
                   </td>
-                  <td className="py-3 pr-4">
-                    <p className="tabular-nums text-ink-900">{formatMoney(p.price_cents, currency)}</p>
-                    <p className="text-xs text-ink-500">
-                      cost {formatMoney(p.cost_cents + p.shipping_cost_cents, currency)} · margin{' '}
-                      {formatPercent(margin, 0)}
-                    </p>
+                  <td className="py-2.5 pr-4 text-sm text-ink-600">
+                    {prog ? (
+                      <span className={prog.done === prog.total ? 'text-moss-500' : undefined}>
+                        {prog.done}/{prog.total} {prog.stage}
+                      </span>
+                    ) : (
+                      '—'
+                    )}
                   </td>
-                  <td className="py-3 pr-4">
-                    <p className="tabular-nums text-ink-900">
-                      {formatMoney(p.revenue_cents, currency)}
-                    </p>
-                    <p className="text-xs text-ink-500">
-                      {p.orders_count} orders · ad spend {formatMoney(p.ad_spend_cents, currency)}
-                    </p>
+                  <td className="py-2.5 pr-4 tabular-nums text-ink-900">{p.product_score}</td>
+                  <td className="py-2.5 pr-4 tabular-nums text-ink-700">
+                    {formatPercent(margin)}
                   </td>
-                  <td className="py-3 pr-4">
-                    <ProductAdmin
-                      productId={p.id}
-                      name={p.name}
-                      status={p.status}
-                      published={p.published}
-                      allowedStatuses={allowedTransitions(p.status)}
-                      sellable={isSellable(p.status)}
-                      ordersCount={p.orders_count}
-                    />
+                  <td
+                    className={`py-2.5 pr-4 tabular-nums ${
+                      !s || s.netProfitCents === 0
+                        ? 'text-ink-500'
+                        : s.netProfitCents > 0
+                          ? 'text-moss-500'
+                          : 'text-clay-600'
+                    }`}
+                  >
+                    {s ? formatMoney(s.netProfitCents) : '—'}
+                  </td>
+                  <td className="py-2.5 pr-4 tabular-nums text-ink-700">
+                    {s ? formatRatio(s.roas) : '—'}
                   </td>
                 </tr>
               )
             })}
           </Table>
+          <p className="mt-4 text-xs leading-relaxed text-ink-500">
+            Margin is modelled from the price and cost you entered. Net and ROAS come from the
+            ledger, so a product with no entries shows a dash rather than zero.
+          </p>
         </Card>
       )}
 
-      <Card title="Rules enforced here">
-        <ul className="space-y-1.5 text-sm text-ink-600">
-          <li>Status changes follow the lifecycle machine — illegal jumps are rejected by the API, not just hidden in the UI.</li>
-          <li>Only approved, testing, winner or scaling products can be published.</li>
-          <li>A compare-at price below the selling price is rejected, so a fake discount cannot be created.</li>
-          <li>Products with orders cannot be deleted — unpublish them instead, so order history stays intact.</li>
-          <li>Generated copy is saved unapproved and passes a fabricated-claim scan before it is stored.</li>
+      <Card title="How to read this">
+        <ul className="space-y-2 text-sm leading-relaxed text-ink-600">
+          <li>
+            <Badge tone="info">Score high, earnings low</Badge> — the rubric liked it and the
+            market did not. Worth a post-mortem: usually the angle or the creative, not the
+            product.
+          </li>
+          <li>
+            <Badge tone="info">Score low, earnings high</Badge> — your rubric inputs were wrong.
+            Go back and check which component you under-rated; that is a lesson about your
+            judgement, which is worth more than the product.
+          </li>
+          <li>
+            <Badge tone="info">Stage incomplete for weeks</Badge> — the weekly job will flag it.
+            Finish it or reject it; a parked candidate costs attention and produces no answer.
+          </li>
         </ul>
       </Card>
     </div>

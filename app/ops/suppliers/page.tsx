@@ -1,125 +1,139 @@
-import { config, capabilities } from '@/lib/commerce/config'
-import { formatMoney } from '@/lib/commerce/money'
-import { listSupplierLinks, listSuppliers, listVariantsByIds } from '@/lib/commerce/db/repo'
-import { ADAPTER_CATALOGUE, adapterFor } from '@/lib/commerce/suppliers/registry'
+import { capabilities } from '@/lib/commerce/config'
+import { formatMoney, formatPercent, grossMargin } from '@/lib/commerce/money'
+import { listProducts, listSuppliers } from '@/lib/commerce/db/repo'
+import { ADAPTER_CATALOGUE } from '@/lib/commerce/suppliers/registry'
 import { Badge, Card, Empty, Note, Table } from '@/components/ops/ui'
 
 export const dynamic = 'force-dynamic'
 
 export default async function OpsSuppliers() {
-  const suppliers = await listSuppliers()
-  const links = await listSupplierLinks()
-  const variants = await listVariantsByIds(links.map((l) => l.variant_id))
+  const [suppliers, products] = await Promise.all([listSuppliers(), listProducts({ sort: 'name' })])
   const supplierCaps = capabilities().filter((c) => c.key.startsWith('supplier'))
+
+  const countFor = (id: string) => products.filter((p) => p.supplier_id === id).length
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="commerce-display text-2xl text-ink-900">Suppliers</h1>
-        <p className="mt-1 max-w-prose text-sm text-ink-600">
-          Suppliers are driven by adapters behind one interface. Swapping a supplier is a database
-          change, not a code change.
+        <h1 className="commerce-display text-2xl text-ink-900">Sourcing</h1>
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-600">
+          Where each candidate would come from and what it costs to land. This is research
+          reference, not fulfilment — you place orders wherever you actually sell.
         </p>
       </div>
 
-      <Note tone="warning">
-        Any supplier using the <strong>mock</strong> adapter simulates fulfilment. Orders are not
-        sent anywhere and tracking numbers are fabricated. Move to a real adapter before taking real
-        orders.
-      </Note>
-
-      {suppliers.length === 0 ? (
-        <Empty title="No suppliers" body="Add a row to ds_suppliers to route orders somewhere." />
-      ) : (
-        <Card title="Configured suppliers">
-          <Table head={['Supplier', 'Adapter', 'Ship window', 'Mapped variants', 'Notes']}>
-            {suppliers.map((s) => {
-              const adapter = adapterFor(s)
-              const mapped = links.filter((l) => l.supplier_id === s.id)
-              return (
-                <tr key={s.id} className="align-top">
-                  <td className="py-3 pr-4">
-                    <p className="font-medium text-ink-900">{s.name}</p>
-                    <p className="text-xs text-ink-500">/{s.slug}</p>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <Badge tone={adapter.status}>{adapter.status}</Badge>
-                    <p className="mt-1 text-xs text-ink-600">{s.adapter}</p>
-                  </td>
-                  <td className="py-3 pr-4 text-ink-700">
-                    {s.default_ship_days_min}–{s.default_ship_days_max} days
-                  </td>
-                  <td className="py-3 pr-4 tabular-nums text-ink-900">{mapped.length}</td>
-                  <td className="py-3 pr-4 max-w-sm text-xs leading-relaxed text-ink-600">
-                    {adapter.note}
-                  </td>
-                </tr>
-              )
-            })}
-          </Table>
-        </Card>
-      )}
-
-      <Card title="Variant → supplier mapping">
-        {links.length === 0 ? (
-          <p className="text-sm text-ink-600">
-            No variants are mapped to a supplier SKU. Orders for unmapped variants will be sent using
-            our own SKU, which the supplier will reject — that failure is surfaced rather than
-            hidden, but it is better to map them first.
-          </p>
+      <Card title="Suppliers">
+        {suppliers.length === 0 ? (
+          <Empty
+            title="No suppliers recorded"
+            body="Add the supplier you sourced a product from so its cost and lead time sit next to the research."
+          />
         ) : (
-          <Table head={['Our SKU', 'Supplier SKU', 'Cost', 'Lead time', 'Last synced']}>
-            {links.map((l) => {
-              const variant = variants.find((v) => v.id === l.variant_id)
-              return (
-                <tr key={l.id}>
-                  <td className="py-2.5 pr-4 text-ink-900">{variant?.sku ?? l.variant_id}</td>
-                  <td className="py-2.5 pr-4 text-ink-700">{l.supplier_sku}</td>
-                  <td className="py-2.5 pr-4 tabular-nums text-ink-900">
-                    {formatMoney(l.supplier_cost_cents + l.supplier_ship_cents, config.currency)}
-                  </td>
-                  <td className="py-2.5 pr-4 text-ink-700">{l.lead_days}d</td>
-                  <td className="py-2.5 pr-4 text-ink-600">
-                    {l.last_synced_at ? l.last_synced_at.slice(0, 10) : 'never'}
-                  </td>
-                </tr>
-              )
-            })}
+          <Table head={['Supplier', 'Adapter', 'Lead time', 'Products', 'Notes']}>
+            {suppliers.map((s) => (
+              <tr key={s.id} className="align-top">
+                <td className="py-2.5 pr-4">
+                  <span className="text-ink-900">{s.name}</span>
+                  {s.website && (
+                    <a
+                      href={s.website}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="block text-xs text-ink-500 underline"
+                    >
+                      {s.website}
+                    </a>
+                  )}
+                </td>
+                <td className="py-2.5 pr-4">
+                  <Badge tone={s.adapter === 'mock' ? 'MOCK' : 'info'}>{s.adapter}</Badge>
+                </td>
+                <td className="py-2.5 pr-4 text-ink-700">
+                  {s.default_ship_days_min}–{s.default_ship_days_max} days
+                </td>
+                <td className="py-2.5 pr-4 tabular-nums text-ink-700">{countFor(s.id)}</td>
+                <td className="py-2.5 pr-4 text-sm text-ink-600">{s.notes ?? '—'}</td>
+              </tr>
+            ))}
           </Table>
         )}
       </Card>
 
-      <Card title="Available adapters">
+      <Card title="Landed cost and modelled margin">
+        {products.length === 0 ? (
+          <Empty title="No products yet" body="Score a candidate in Research first." />
+        ) : (
+          <>
+            <Table head={['Product', 'Supplier', 'Unit cost', 'Shipping', 'Price', 'Margin']}>
+              {products.map((p) => {
+                const supplier = suppliers.find((s) => s.id === p.supplier_id)
+                const margin = grossMargin(p.price_cents, p.cost_cents, p.shipping_cost_cents)
+                return (
+                  <tr key={p.id}>
+                    <td className="py-2.5 pr-4 text-ink-900">{p.name}</td>
+                    <td className="py-2.5 pr-4 text-ink-600">{supplier?.name ?? '—'}</td>
+                    <td className="py-2.5 pr-4 tabular-nums text-ink-700">
+                      {formatMoney(p.cost_cents)}
+                    </td>
+                    <td className="py-2.5 pr-4 tabular-nums text-ink-700">
+                      {formatMoney(p.shipping_cost_cents)}
+                    </td>
+                    <td className="py-2.5 pr-4 tabular-nums text-ink-900">
+                      {formatMoney(p.price_cents)}
+                    </td>
+                    <td
+                      className={`py-2.5 pr-4 tabular-nums ${
+                        margin !== null && margin < 0.2 ? 'text-clay-600' : 'text-ink-900'
+                      }`}
+                    >
+                      {formatPercent(margin)}
+                    </td>
+                  </tr>
+                )
+              })}
+            </Table>
+            <p className="mt-4 text-xs leading-relaxed text-ink-500">
+              Margin here is modelled from the numbers you entered, before advertising. Anything
+              under about 20% leaves nothing to pay for traffic, and no amount of scale fixes that.
+            </p>
+          </>
+        )}
+      </Card>
+
+      <Card title="Cost lookup adapters">
+        <p className="mb-4 text-sm leading-relaxed text-ink-600">
+          These fetch catalogue and price data from a supplier so the cost in your research is a
+          real number rather than a guess. Order placement was removed with the storefront — this
+          tool does not fulfil anything.
+        </p>
         <div className="space-y-3">
           {ADAPTER_CATALOGUE.map((a) => (
             <div key={a.id} className="rounded-xl border border-ink-200 p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={a.status}>{a.status}</Badge>
                 <p className="font-medium text-ink-900">{a.label}</p>
-                <code className="text-xs text-ink-500">{a.id}</code>
               </div>
               <p className="mt-1.5 text-sm leading-relaxed text-ink-600">{a.note}</p>
-              {a.requires.length > 0 && (
-                <p className="mt-1.5 text-xs text-ink-500">Requires: {a.requires.join(', ')}</p>
-              )}
             </div>
           ))}
         </div>
-      </Card>
-
-      <Card title="Credentials">
-        <div className="space-y-3">
+        <div className="mt-5 space-y-3">
           {supplierCaps.map((c) => (
-            <div key={c.key} className="flex flex-wrap items-start gap-3">
-              <Badge tone={c.configured ? 'REAL' : c.status}>{c.configured ? 'configured' : c.status}</Badge>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-ink-900">{c.label}</p>
-                <p className="text-xs leading-relaxed text-ink-600">{c.note}</p>
-                {c.requires.length > 0 && (
-                  <p className="mt-0.5 text-xs text-ink-500">Set: {c.requires.join(', ')}</p>
-                )}
-              </div>
-            </div>
+            <Note key={c.key} tone={c.configured ? 'info' : 'warning'}>
+              <strong>{c.label}:</strong> {c.note}
+              {c.requires.length > 0 && (
+                <>
+                  {' '}
+                  Needs{' '}
+                  {c.requires.map((r) => (
+                    <code key={r} className="mx-0.5">
+                      {r}
+                    </code>
+                  ))}
+                  .
+                </>
+              )}
+            </Note>
           ))}
         </div>
       </Card>

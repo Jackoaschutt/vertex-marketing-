@@ -284,7 +284,7 @@ export default async function OpsSystem() {
           <Stat
             label="Products"
             value={String(snap.totals.products)}
-            sub={`${snap.totals.publishedProducts} published`}
+            sub={`${snap.totals.scoredProducts} scored`}
           />
           <Stat
             label="Open recommendations"

@@ -121,7 +121,7 @@ export const ROUTES: RouteEntry[] = [
   { path: '/api/commerce/cart/validate', file: 'app/api/commerce/cart/validate/route.ts', kind: 'api', auth: 'public', purpose: 'Re-prices a client cart from the database.' },
   { path: '/api/commerce/checkout', file: 'app/api/commerce/checkout/route.ts', kind: 'api', auth: 'public', purpose: 'Opens a Stripe Checkout Session from server-derived prices.' },
   { path: '/api/commerce/contact', file: 'app/api/commerce/contact/route.ts', kind: 'api', auth: 'public', purpose: 'Support form intake.' },
-  { path: '/api/commerce/webhooks/stripe', file: 'app/api/commerce/webhooks/stripe/route.ts', kind: 'api', auth: 'signature', purpose: 'Paid order intake and refunds. Own secret, separate from PropGuard billing.' },
+  { path: '/api/commerce/webhooks/stripe', file: 'app/api/commerce/webhooks/stripe/route.ts', kind: 'api', auth: 'signature', purpose: 'Paid order intake and refunds. Verified with its own signing secret.' },
   { path: '/api/commerce/webhooks/supplier', file: 'app/api/commerce/webhooks/supplier/route.ts', kind: 'api', auth: 'signature', purpose: 'Supplier status and tracking updates, HMAC-verified.' },
   { path: '/api/commerce/products', file: 'app/api/commerce/products/route.ts', kind: 'api', auth: 'admin', purpose: 'List and create products.' },
   { path: '/api/commerce/products/[id]', file: 'app/api/commerce/products/[id]/route.ts', kind: 'api', auth: 'admin', purpose: 'Read, update (lifecycle and publish rules enforced), delete.' },

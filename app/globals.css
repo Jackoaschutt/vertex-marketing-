@@ -50,9 +50,10 @@ body {
 /* ---------------------------------------------------------------------------
    Vesper Commerce scope.
 
-   PropGuard sets a dark background on <body>. The storefront and ops dashboard
+The global <body> is dark (inherited from the app this repository started
+   as, and still used by the sign-in pages). The storefront and ops dashboard
    are light, so every commerce layout wraps its tree in .commerce-scope, which
-   re-establishes colour, typography and rhythm without touching PropGuard's
+   re-establishes colour, typography and rhythm locally rather than fighting the
    global styles.
    --------------------------------------------------------------------------- */
 .commerce-scope {

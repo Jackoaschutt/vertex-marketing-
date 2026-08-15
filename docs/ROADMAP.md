@@ -10,7 +10,7 @@ Status per item: **DONE** (built and working in this repo) · **PARTIAL** (usabl
 | --- | --- | --- |
 | Repository + stack audit | DONE | `docs/ARCHITECTURE.md` §1 |
 | Architecture + roadmap docs | DONE | This file and ARCHITECTURE.md |
-| Namespace decision (coexist with PropGuard) | DONE | `/store`, `/ops`, `/api/commerce`, `ds_*` tables |
+| Namespace decision | DONE | `/store`, `/ops`, `/api/commerce`, `ds_*` tables; storefront served at `/` |
 | Domain types | DONE | `lib/commerce/types.ts` |
 | Money handling (integer minor units) | DONE | `lib/commerce/money.ts` |
 | Brand configuration | DONE | `lib/commerce/brand.ts` — single source of truth for name, voice, palette, policies |
@@ -122,7 +122,7 @@ Status per item: **DONE** (built and working in this repo) · **PARTIAL** (usabl
 
 1. Create a Supabase project, run every migration including `011_commerce_core.sql`.
 2. Set `COMMERCE_ADMIN_EMAILS` — until then `/ops` denies everyone.
-3. Set Stripe live keys and register the commerce webhook endpoint separately from PropGuard's.
+3. Set Stripe live keys and register the commerce webhook endpoint.
 4. Replace the placeholder policy pages with real legal text and a real business entity, address, and contact.
 5. Connect a real supplier (CJ adapter verified, or the generic HTTP adapter configured) and place one live test order end to end.
 6. Set `RESEND_API_KEY` (or another transport) so customers actually receive email.

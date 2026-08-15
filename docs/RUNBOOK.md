@@ -21,9 +21,9 @@ the first product, launch.
 | Meta Ads client | `lib/commerce/marketing/adapter-meta.ts` | REAL, **unverified** |
 | Other ad channels | `lib/commerce/marketing/channels.ts` | TODO (manual entry is REAL) |
 
-The existing **PropGuard** app is untouched. It still owns `/`, `/dashboard`,
-`/session`, `/journal`, `/analytics`, `/accounts`, `/settings`, `/squad`,
-`/login`, `/signup` and `/api/*` (excluding `/api/commerce/*`).
+The storefront is served at `/`. The only non-commerce routes left in the app
+are `/login` and `/signup`, which exist so an admin can obtain the Supabase
+session that `/ops` authorises against.
 
 ---
 
@@ -31,7 +31,7 @@ The existing **PropGuard** app is untouched. It still owns `/`, `/dashboard`,
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000/store  and  /ops
+npm run dev          # http://localhost:3000  and  /ops
 ```
 
 With no `.env.local` at all the storefront runs on seeded demo data. `/ops`
@@ -40,7 +40,7 @@ Supabase Auth to have a session to check.
 
 ```bash
 npm run typecheck    # tsc --noEmit
-npm test             # compiles lib + tests to CJS, runs node --test (77 tests)
+npm test             # compiles lib + tests to CJS, runs node --test (95 tests)
 npm run build        # production build
 ```
 
@@ -49,9 +49,8 @@ npm run build        # production build
 ## 3. Connect the database
 
 1. Create a Supabase project.
-2. Run every migration in `supabase/migrations/` in filename order. The commerce
-   schema is `011_commerce_core.sql`; migrations `001`–`010` belong to PropGuard
-   and are safe to run alongside it.
+2. Run `supabase/migrations/011_commerce_core.sql`. It is the only migration in
+   the repository and creates all 17 `ds_` tables.
 3. Set in `.env.local`:
    ```
    NEXT_PUBLIC_SUPABASE_URL=...
@@ -87,9 +86,8 @@ what is still missing rather than making you work through this document.
 
 ## 5. Connect Stripe
 
-1. `STRIPE_SECRET_KEY` — the commerce checkout uses the same Stripe account as
-   PropGuard's subscription billing.
-2. Add a **second** webhook endpoint in the Stripe dashboard:
+1. `STRIPE_SECRET_KEY` — any Stripe account.
+2. Add a webhook endpoint in the Stripe dashboard:
    - URL: `https://<your-domain>/api/commerce/webhooks/stripe`
    - Events: `checkout.session.completed`, `charge.refunded`
 3. Put that endpoint's signing secret in `STRIPE_COMMERCE_WEBHOOK_SECRET`.
@@ -380,10 +378,8 @@ Vercel:
    Graph tags, the sitemap and Stripe redirect URLs all derive from it.
 4. Deploy, then register the commerce Stripe webhook against the live URL.
 
-The storefront is served at the site root: middleware rewrites `/` to `/store`.
-PropGuard's landing page and its `/dashboard` routes are still in the
-repository and still reachable at their own paths — setting `PROPGUARD_ROOT=true`
-hands `/` back to PropGuard, and the store stays at `/store` either way.
+The storefront is served at the site root: middleware rewrites `/` to `/store`,
+so the home page keeps the bare root URL. `/store` also works directly.
 
 ---
 

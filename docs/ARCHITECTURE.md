@@ -16,11 +16,11 @@ The audit was run before any code was written. Findings:
 | Framework | Next.js `15.5.18`, App Router, React 19, TypeScript strict |
 | Package manager | npm (`package-lock.json` present, no pnpm/yarn lockfiles) |
 | Styling | Tailwind CSS v3 + PostCSS/autoprefixer, custom `brand`/`danger`/`warning` palettes |
-| Existing app | **PropGuard** — a prop-firm trading journal. Owns `/`, `/dashboard`, `/session`, `/journal`, `/analytics`, `/accounts`, `/settings`, `/squad`, `/login`, `/signup`, `/onboarding`, `/paywall` |
-| Database | Supabase Postgres. 10 migrations in `supabase/migrations/` (`001`–`010` + one combined squad-hub file). All PropGuard tables |
+| Existing app | **PropGuard** — a prop-firm trading journal owning `/`, `/dashboard`, `/session`, `/journal`, `/analytics`, `/accounts`, `/settings`, `/squad`, `/login`, `/signup`, `/onboarding`, `/paywall`. *(Since removed — see "Removing PropGuard" below.)* |
+| Database | Supabase Postgres. 10 migrations in `supabase/migrations/` (`001`–`010` + one combined squad-hub file), all belonging to the trading journal |
+| Payments | Stripe `^17.7.0`, already wired |
 | Auth | Supabase Auth (email/password) via `@supabase/ssr`; `middleware.ts` guards every non-public route |
-| Payments | Stripe `^17.7.0` — subscription billing for PropGuard (`/api/billing/*`, `/api/webhooks/stripe`) |
-| AI | `@anthropic-ai/sdk ^0.98.0` already a dependency (used by PropGuard's AI session review) |
+| AI | `@anthropic-ai/sdk ^0.98.0` already a dependency |
 | Charts | `recharts ^3.8.1` |
 | Existing automation | `server.py` — a **DropshipDiscovery MCP server** (Python/FastMCP/Starlette). Real HTTP integrations, each env-gated with a "preview mode" fallback: SerpAPI (Google Trends), Anthropic (idea generation + scoring + copy), Shopify Admin REST, Meta Marketing API |
 | Shopify config | None in the Next.js app. `server.py` reads `SHOPIFY_STORE` / `SHOPIFY_ADMIN_TOKEN` |
@@ -29,7 +29,7 @@ The audit was run before any code was written. Findings:
 
 ### Key architectural decision arising from the audit
 
-Development rule #1 is *"do not destroy working functionality"*. PropGuard is working functionality and it occupies `/` and `/dashboard`. So the commerce system is built as a **self-contained module in its own namespace inside the same Next.js app**, sharing only the infrastructure primitives (Supabase client, Stripe client, Tailwind config, Anthropic SDK):
+Development rule #1 is *"do not destroy working functionality"*. PropGuard was working functionality and it occupied `/` and `/dashboard`. So the commerce system was built as a **self-contained module in its own namespace inside the same Next.js app**, sharing only the infrastructure primitives (Supabase client, Stripe client, Tailwind config, Anthropic SDK):
 
 | Concern | Namespace |
 | --- | --- |
@@ -40,7 +40,21 @@ Development rule #1 is *"do not destroy working functionality"*. PropGuard is wo
 | UI | `components/store/*`, `components/ops/*` |
 | Database | `ds_*` tables, migration `011_commerce_core.sql` |
 
-**The store is the site's front door.** `middleware.ts` rewrites `/` → `/store`. Nothing of PropGuard is deleted — `app/page.tsx` and every `/dashboard` route are untouched and still reachable — and setting `PROPGUARD_ROOT=true` hands `/` back to PropGuard. The switch is one environment variable in either direction.
+**The store is the site's front door.** `middleware.ts` rewrites `/` → `/store`, so the home page keeps the bare root URL.
+
+### Removing PropGuard
+
+PropGuard has since been removed at the owner's request. The namespacing above is why that was a clean deletion rather than an untangling: commerce never imported PropGuard code, so removing `app/(dashboard)/`, PropGuard's API routes, `lib/analytics/`, `lib/circuit-breaker/`, `lib/crypto.ts`, `lib/squadCode.ts`, the browser extension and migrations `001`–`010` touched nothing the store depends on.
+
+Three things were deliberately **kept**, because commerce needs them:
+
+| Kept | Why |
+| --- | --- |
+| `app/(auth)/login`, `app/(auth)/signup` | The admin allowlist authorises a Supabase session; there has to be a way to obtain one. |
+| `lib/supabase/*` | Both the auth gate and the storage driver use it. |
+| `lib/stripe.ts` | The commerce checkout and webhook use the shared client. |
+
+PropGuard's database tables are untouched by the deletion — dropping them is a separate decision, and no commerce code reads them.
 
 ---
 
@@ -94,7 +108,7 @@ Development rule #1 is *"do not destroy working functionality"*. PropGuard is wo
 
 **Cart.** Client-side, persisted in `localStorage` under `vesper.cart.v1`. It holds only `{variantId, qty}` — never prices. Every price is re-derived server-side at checkout, so a tampered cart cannot change what the customer is charged.
 
-**Styling.** Tailwind, with a commerce design system layered into `tailwind.config.ts` under the `ink` / `sand` / `clay` scales so PropGuard's `brand`/`danger`/`warning` scales are untouched. Type scale is set in `app/globals.css` behind `.commerce-scope` so PropGuard's global styles don't shift.
+**Styling.** Tailwind, with the commerce design system in `tailwind.config.ts` under the `ink` / `sand` / `clay` scales. The type scale is set in `app/globals.css` behind `.commerce-scope`, which is also what keeps the storefront light against the dark global `body` inherited from the original app.
 
 **Mobile-first.** Every storefront layout is authored at 375 px and progressively enhanced. Product pages carry a sticky add-to-cart bar below `md`. Images use `next/image` with explicit `sizes`, `priority` only on the LCP hero.
 
@@ -126,7 +140,7 @@ Next.js Route Handlers under `app/api/commerce/`:
 | `/api/commerce/marketing/meta/map` | POST | admin | REAL |
 | `/api/commerce/contact` | POST | public, rate-limited | REAL |
 
-`/api/commerce/webhooks/stripe` is deliberately **separate** from PropGuard's `/api/webhooks/stripe` and uses its own `STRIPE_COMMERCE_WEBHOOK_SECRET`, so commerce events cannot disturb subscription billing.
+`/api/commerce/webhooks/stripe` uses its own `STRIPE_COMMERCE_WEBHOOK_SECRET` and ignores any event without `metadata.commerce === 'vesper'`, so another webhook on the same Stripe account cannot be mistaken for an order.
 
 ---
 

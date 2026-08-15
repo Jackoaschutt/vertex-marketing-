@@ -60,9 +60,6 @@ export const config = {
       .map((s) => s.trim().toLowerCase())
       .filter(Boolean)
   },
-  get storeAtRoot(): boolean {
-    return process.env.PROPGUARD_ROOT !== 'true'
-  },
   get currency(): string {
     return process.env.COMMERCE_CURRENCY ?? 'USD'
   },

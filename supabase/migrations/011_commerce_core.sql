@@ -1,8 +1,8 @@
 -- 011_commerce_core.sql
 -- Vesper Commerce: dropshipping storefront, research, supplier, order and analytics core.
 --
--- Namespacing: every table is prefixed `ds_` so this schema coexists with the
--- existing PropGuard tables (migrations 001-010) without any collision.
+-- Namespacing: every table is prefixed `ds_` so this schema can coexist with
+-- anything else in the same database without a collision.
 --
 -- Money: ALL monetary columns are integer MINOR UNITS (cents). Never floats.
 -- Currency is stored per-order; catalogue prices assume ds_settings.default_currency.
@@ -368,8 +368,13 @@ alter table ds_settings           enable row level security;
 -- ---------------------------------------------------------------------------
 -- updated_at maintenance
 -- ---------------------------------------------------------------------------
+-- search_path is pinned empty so the function cannot be hijacked by a schema
+-- earlier on a caller's search_path. now() resolves from pg_catalog regardless.
 create or replace function ds_touch_updated_at() returns trigger
-language plpgsql as $$
+language plpgsql
+security invoker
+set search_path = ''
+as $$
 begin
   new.updated_at = now();
   return new;

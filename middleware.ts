@@ -35,11 +35,9 @@ function isCommercePublic(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // The storefront is the site's front door. Nothing of PropGuard is deleted —
-  // app/page.tsx and every /dashboard route are untouched, and setting
-  // PROPGUARD_ROOT=true restores PropGuard's landing page at / — but commerce
-  // is the default now.
-  if (process.env.PROPGUARD_ROOT !== 'true' && pathname === '/') {
+  // The storefront is the site. Rewritten rather than redirected so the home
+  // page keeps the bare root URL.
+  if (pathname === '/') {
     const url = request.nextUrl.clone()
     url.pathname = '/store'
     return NextResponse.rewrite(url)
@@ -108,8 +106,6 @@ export async function middleware(request: NextRequest) {
 
   const isPublic = pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
-    pathname.startsWith('/agent-status') ||
-    pathname.startsWith('/api/build-status') ||
     pathname === '/'
 
   if (!user && !isPublic) {
@@ -119,8 +115,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
+  // Signing in exists to reach the admin. Whether the account is actually
+  // allowlisted is decided by lib/commerce/auth.ts, not here.
   if (user && (pathname === '/login' || pathname === '/signup')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return NextResponse.redirect(new URL('/ops', request.url))
   }
 
   return supabaseResponse

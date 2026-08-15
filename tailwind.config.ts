@@ -27,7 +27,6 @@ const config: Config = {
           500: '#f59e0b',
         },
         // --- Vesper Commerce palette -------------------------------------
-        // Added alongside PropGuard's scales, never replacing them.
         ink: {
           50:  '#f7f6f4',
           100: '#eeebe6',

@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
+import { brand } from '@/lib/commerce/brand'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'PropGuard — Trade With Discipline',
-  description: 'Circuit breaker accountability for prop firm traders',
+  title: `${brand.name} — ${brand.tagline}`,
+  description: brand.promise,
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

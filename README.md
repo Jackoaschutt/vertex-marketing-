@@ -1,18 +1,25 @@
-# vertex-marketing-
+# Vesper Commerce
 
-This repository hosts two independent applications that share one Next.js 15
-deployment, one Supabase project and one Stripe account.
+An automated dropshipping business in one Next.js 15 app: storefront, product
+research engine, supplier abstraction, order pipeline, profit analytics, admin
+dashboard, automation engine, Meta Ads integration and an AI analyst.
 
-| App | Routes | What it is |
+| Surface | Routes | What it is |
 | --- | --- | --- |
-| **PropGuard** | `/`, `/dashboard`, `/session`, `/journal`, `/analytics`, `/accounts`, `/settings`, `/squad` | Prop-firm trading journal with a circuit breaker, analytics and Stripe subscription billing. |
-| **Vesper Commerce** | `/store`, `/ops`, `/api/commerce/*` | An automated dropshipping business: storefront, product research engine, supplier abstraction, order pipeline, profit analytics, admin dashboard, automation engine and an AI analyst. |
+| **Storefront** | `/` (and `/store`), `/store/shop`, `/store/product/[slug]`, `/store/cart`, `/store/pages/*` | The public shop. Mobile-first, server-priced, SEO-complete. |
+| **Admin** | `/ops` | Overview, products, research, orders, suppliers, customers, analytics, marketing, automations, settings, system. Allowlist-gated. |
+| **API** | `/api/commerce/*` | Cart validation, checkout, webhooks, product management, automation runner, Meta Ads. |
+
+Start at **`/ops/system`** — it lists every module, route and table that exists,
+whether each is real code, a labelled mock or written-but-unverified, and which
+launch-readiness items are still outstanding in the deployment you are looking
+at.
 
 There is also `server.py`, a standalone Python MCP server for interactive
 product discovery (Google Trends → product ideas → Shopify → Meta Ads). It is
 optional and deploys separately.
 
-## Commerce documentation
+## Documentation
 
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — how it is built and why
 - **[docs/ROADMAP.md](docs/ROADMAP.md)** — what is done, partial, mocked and outstanding
@@ -22,7 +29,7 @@ optional and deploys separately.
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000/store
+npm run dev        # http://localhost:3000
 ```
 
 With no environment configured at all, the storefront runs on seeded in-memory
@@ -32,7 +39,7 @@ denies access until `COMMERCE_ADMIN_EMAILS` is set.
 
 ```bash
 npm run typecheck  # tsc --noEmit
-npm test           # node --test, 77 tests, no extra dependencies
+npm test           # node --test, 95 tests, no extra dependencies
 npm run build      # production build
 ```
 

@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 /**
  * GET /store-sitemap.xml — generated from live catalogue data.
  * Named `store-sitemap` rather than `sitemap` so it does not collide with any
- * sitemap the existing PropGuard app may add later.
+ * sitemap Next.js may generate at the root later.
  */
 export async function GET(): Promise<Response> {
   const products = (await listProducts({ published: true })).filter((p) => isSellable(p.status))

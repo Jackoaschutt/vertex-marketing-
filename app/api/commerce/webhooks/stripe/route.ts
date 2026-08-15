@@ -19,9 +19,9 @@ export const runtime = 'nodejs'
 /**
  * Commerce Stripe webhook.
  *
- * Deliberately separate from PropGuard's /api/webhooks/stripe and verified with
- * its own STRIPE_COMMERCE_WEBHOOK_SECRET, so a commerce event can never disturb
- * subscription billing (and vice versa).
+ * Verified with its own STRIPE_COMMERCE_WEBHOOK_SECRET. Events are additionally
+ * filtered on metadata.commerce, so another endpoint on the same Stripe account
+ * can never be mistaken for a store order.
  *
  * Idempotent: the order is keyed on the Stripe session id, so a replayed event
  * returns the existing order instead of creating a duplicate.
@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
-        // Ignore anything that is not ours — PropGuard subscriptions share the
-        // same Stripe account.
+        // Ignore anything that is not ours — one Stripe account may serve
+        // several products.
         if (session.metadata?.commerce !== 'vesper') break
         await handleCheckoutCompleted(session)
         break

@@ -32,7 +32,7 @@ export default function LoginPage() {
   return (
     <>
       <h1 className="text-2xl font-bold text-white mb-1">Welcome back</h1>
-      <p className="text-slate-500 text-sm mb-6">Sign in to your PropGuard account</p>
+      <p className="text-slate-500 text-sm mb-6">Sign in to reach the admin</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>

@@ -14,12 +14,12 @@ import {
 export interface Point {
   day: string
   revenueCents: number
-  profitCents: number
+  netProfitCents: number
   adSpendCents: number
 }
 
 const SERIES = [
-  { key: 'revenue', label: 'Net revenue', color: '#5c534a' },
+  { key: 'revenue', label: 'Revenue', color: '#5c534a' },
   { key: 'profit', label: 'Net profit', color: '#61735a' },
   { key: 'adSpend', label: 'Ad spend', color: '#b7714a' },
 ] as const
@@ -28,7 +28,7 @@ export function RevenueChart({ data, currency = 'USD' }: { data: Point[]; curren
   const rows = data.map((d) => ({
     day: d.day.slice(5),
     revenue: d.revenueCents / 100,
-    profit: d.profitCents / 100,
+    profit: d.netProfitCents / 100,
     adSpend: d.adSpendCents / 100,
   }))
 

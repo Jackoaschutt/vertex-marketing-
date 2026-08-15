@@ -12,9 +12,8 @@
  */
 
 import { formatMoney, formatPercent, formatRatio } from '../money'
-import { listOrders, listRecommendations } from '../db/repo'
-import { loadDashboard, type DashboardData } from '../analytics/profit'
-import { rollupByChannel } from '../analytics/attribution'
+import { listPostmortems, listRecommendations, listSales } from '../db/repo'
+import { loadDashboard, type ProfitSummary } from '../analytics/profit'
 import { generateJson } from './client'
 
 export interface AnalystAnswer {
@@ -30,47 +29,70 @@ export interface MetricBundle {
   windows: Record<'today' | 'week' | 'month' | 'allTime', Record<string, unknown>>
   products: Record<string, unknown>[]
   channels: Record<string, unknown>[]
+  /** Past outcomes in the owner's own words — what the coach should reason from. */
+  history: Record<string, unknown>[]
   openRecommendations: { title: string; kind: string; severity: string }[]
   dataQuality: string[]
 }
 
-function summarise(s: DashboardData['today']): Record<string, unknown> {
+function summarise(s: ProfitSummary): Record<string, unknown> {
   return {
-    orders: s.orders,
     units: s.units,
-    grossRevenue: formatMoney(s.grossRevenueCents),
-    netRevenue: formatMoney(s.netRevenueCents),
+    revenue: formatMoney(s.revenueCents),
+    refunds: formatMoney(s.refundsCents),
     cogs: formatMoney(s.cogsCents),
     grossProfit: formatMoney(s.grossProfitCents),
+    fees: formatMoney(s.feesCents),
     adSpend: formatMoney(s.adSpendCents),
-    paymentFees: formatMoney(s.paymentFeesCents),
-    otherExpenses: formatMoney(s.otherExpensesCents),
+    otherExpenses: formatMoney(s.expensesCents),
     netProfit: formatMoney(s.netProfitCents),
+    grossMargin: formatPercent(s.grossMargin),
     netMargin: formatPercent(s.netMargin),
-    aov: s.aovCents === null ? 'insufficient data' : formatMoney(s.aovCents),
     roas: formatRatio(s.roas),
     cpa: s.cpaCents === null ? 'insufficient data' : formatMoney(s.cpaCents),
+    revenuePerUnit:
+      s.revenuePerUnitCents === null ? 'insufficient data' : formatMoney(s.revenuePerUnitCents),
     refundRate: formatPercent(s.refundRate),
   }
 }
 
 export async function buildMetricBundle(): Promise<MetricBundle> {
-  const [dashboard, orders, recommendations] = await Promise.all([
+  const [dashboard, sales, postmortems, recommendations] = await Promise.all([
     loadDashboard(),
-    listOrders({ limit: 1000 }),
+    listSales(),
+    listPostmortems(),
     listRecommendations('open'),
   ])
 
+  // Stating the limits of the data is part of the answer. A confident number
+  // computed from four days of hand-entered rows is worse than no number.
   const dataQuality: string[] = []
   if (dashboard.allTime.adSpendCents === 0) {
     dataQuality.push('No ad spend has been recorded, so ROAS and CPA cannot be computed.')
   }
-  if (dashboard.allTime.sessions === 0) {
-    dataQuality.push('No session counts are recorded, so conversion rate is unavailable.')
+  if (sales.length === 0) {
+    dataQuality.push('The sales ledger is empty, so every revenue and profit figure is zero because nothing has been entered — not because nothing sold.')
+  } else if (sales.length < 14) {
+    dataQuality.push(`Only ${sales.length} ledger entr(ies) exist. Per-product figures are indicative, not conclusive.`)
   }
-  if (orders.length < 30) {
-    dataQuality.push(`Only ${orders.length} orders exist — per-product figures are not yet statistically meaningful.`)
+  if (dashboard.unattributedAdSpendCents > 0) {
+    dataQuality.push(
+      `${formatMoney(dashboard.unattributedAdSpendCents)} of ad spend is not attached to a product, so per-product ROAS is understated while the whole-business figure is correct.`
+    )
   }
+  if (postmortems.length === 0) {
+    dataQuality.push('No post-mortems have been written, so there is no recorded history to reason about causes from.')
+  }
+
+  // Sales grouped by the channel they were entered against.
+  const byChannel = new Map<string, { units: number; revenueCents: number }>()
+  for (const s of sales) {
+    const c = byChannel.get(s.channel) ?? { units: 0, revenueCents: 0 }
+    c.units += s.units
+    c.revenueCents += s.revenue_cents - s.refunds_cents
+    byChannel.set(s.channel, c)
+  }
+  const totalRevenue = [...byChannel.values()].reduce((sum, c) => sum + c.revenueCents, 0)
 
   return {
     generatedAt: new Date().toISOString(),
@@ -80,29 +102,34 @@ export async function buildMetricBundle(): Promise<MetricBundle> {
       month: summarise(dashboard.month),
       allTime: summarise(dashboard.allTime),
     },
-    products: dashboard.productPnl.map((p) => ({
-      name: p.product.name,
-      status: p.product.status,
-      published: p.product.published,
-      score: p.product.product_score,
-      orders: p.orders,
-      units: p.units,
-      revenue: formatMoney(p.revenueCents),
-      cogs: formatMoney(p.cogsCents),
-      grossProfit: formatMoney(p.grossProfitCents),
-      adSpend: formatMoney(p.adSpendCents),
-      netProfit: formatMoney(p.netProfitCents),
-      roas: formatRatio(p.roas),
-      cpa: p.cpaCents === null ? 'n/a' : formatMoney(p.cpaCents),
-      conversionRate: formatPercent(p.conversionRate),
-      refundRate: formatPercent(p.refundRate),
+    products: dashboard.productPnl.map(({ product, summary }) => ({
+      name: product.name,
+      status: product.status,
+      score: product.product_score,
+      units: summary.units,
+      revenue: formatMoney(summary.revenueCents),
+      cogs: formatMoney(summary.cogsCents),
+      grossProfit: formatMoney(summary.grossProfitCents),
+      adSpend: formatMoney(summary.adSpendCents),
+      netProfit: formatMoney(summary.netProfitCents),
+      grossMargin: formatPercent(summary.grossMargin),
+      roas: formatRatio(summary.roas),
+      cpa: summary.cpaCents === null ? 'n/a' : formatMoney(summary.cpaCents),
+      refundRate: formatPercent(summary.refundRate),
     })),
-    channels: rollupByChannel(orders).map((c) => ({
-      source: c.source,
-      orders: c.orders,
+    channels: [...byChannel.entries()].map(([source, c]) => ({
+      source,
+      units: c.units,
       revenue: formatMoney(c.revenueCents),
-      aov: c.aovCents === null ? 'n/a' : formatMoney(c.aovCents),
-      shareOfOrders: formatPercent(c.share),
+      shareOfRevenue: formatPercent(totalRevenue > 0 ? c.revenueCents / totalRevenue : null),
+    })),
+    history: postmortems.map((p) => ({
+      productId: p.product_id,
+      outcome: p.outcome,
+      factors: p.factors,
+      whatWorked: p.what_worked,
+      whatFailed: p.what_failed,
+      nextTime: p.next_time,
     })),
     openRecommendations: recommendations.map((r) => ({
       title: r.title,
@@ -125,9 +152,9 @@ const SCHEMA: Record<string, unknown> = {
 }
 
 const SYSTEM = [
-  'You are the analyst for a small direct-to-consumer store.',
+  'You are the analyst and coach for one person learning ecommerce. They research products here, sell elsewhere, and keep their books here.',
   '',
-  'The JSON metric bundle in the user message is your ONLY source of fact. It was computed from the store database immediately before this request.',
+  'The JSON metric bundle in the user message is your ONLY source of fact. It was computed from their database immediately before this request, from a hand-entered ledger.',
   '',
   'RULES:',
   '- Never state a number that is not in the bundle. Do not estimate, extrapolate or infer figures.',
@@ -137,6 +164,8 @@ const SYSTEM = [
   '- Small sample sizes make per-product conclusions unreliable. Say so when the bundle flags it.',
   '- Recommend actions, but attribute each one to the specific figure that supports it.',
   '- Be direct and brief. No preamble, no restating the question.',
+  '- The `history` array holds their own post-mortems. Reason from those when asked about causes or patterns; quote their words rather than inventing an explanation.',
+  '- They are learning. When a figure implies a general lesson, say the lesson once, plainly, without lecturing.',
   '',
   'Return JSON: answer (2–4 sentences), bullets (up to 5 supporting points, each citing a figure), caveats (data limitations that affect this answer; empty array if none).',
 ].join('\n')
@@ -199,13 +228,13 @@ function rulesAnswer(question: string, bundle: MetricBundle): AnalystAnswer {
   }
 
   if (/scale|scaling|increase budget/.test(q)) {
-    const candidates = products.filter((p) => Number(p.roas) >= 2 && Number(p.orders) >= 5)
+    const candidates = products.filter((p) => Number(p.roas) >= 2 && Number(p.units) >= 5)
     return {
       answer:
         candidates.length > 0
           ? `${candidates.length} product(s) clear a 2.0 ROAS with at least 5 orders, which is the bar for adding budget.`
           : 'No product currently clears a 2.0 ROAS with enough orders to justify scaling.',
-      bullets: candidates.map((p) => `${p.name}: ROAS ${p.roas}, ${p.orders} orders, net ${p.netProfit}.`),
+      bullets: candidates.map((p) => `${p.name}: ROAS ${p.roas}, ${p.units} unit(s), net ${p.netProfit}.`),
       caveats,
       generator: 'rules',
       model: null,
@@ -216,9 +245,9 @@ function rulesAnswer(question: string, bundle: MetricBundle): AnalystAnswer {
     const w = bundle.windows.week
     const m = bundle.windows.month
     return {
-      answer: `In the last 7 days: ${w.orders} orders, ${w.netRevenue} net revenue and ${w.netProfit} net profit. The 30-day figures are ${m.orders} orders and ${m.netProfit} net profit.`,
+      answer: `In the last 7 days: ${w.units} unit(s), ${w.revenue} revenue and ${w.netProfit} net profit. The 30-day figures are ${m.units} unit(s) and ${m.netProfit} net profit.`,
       bullets: [
-        `Week ROAS ${w.roas}, CPA ${w.cpa}, AOV ${w.aov}.`,
+        `Week ROAS ${w.roas}, CPA ${w.cpa}, revenue per unit ${w.revenuePerUnit}.`,
         `Week ad spend ${w.adSpend} against ${w.netRevenue} net revenue.`,
         `Refund rate ${w.refundRate}.`,
       ],
@@ -248,7 +277,7 @@ function rulesAnswer(question: string, bundle: MetricBundle): AnalystAnswer {
       answer:
         'Order-side drop-off can be answered from this data; page-level drop-off cannot, because no page analytics provider is connected.',
       bullets: [
-        `Conversion rate: ${bundle.windows.allTime.aov === 'insufficient data' ? 'unavailable' : String(bundle.windows.allTime.roas)}`,
+        `All-time ROAS: ${String(bundle.windows.allTime.roas)}`,
         'Abandoned carts are recorded at checkout start — see /ops/marketing.',
       ],
       caveats: [...caveats, 'No page-view analytics are connected, so pre-checkout drop-off is not measurable.'],
@@ -259,7 +288,7 @@ function rulesAnswer(question: string, bundle: MetricBundle): AnalystAnswer {
 
   const all = bundle.windows.allTime
   return {
-    answer: `All-time: ${all.orders} orders, ${all.netRevenue} net revenue, ${all.netProfit} net profit (margin ${all.netMargin}).`,
+    answer: `All-time: ${all.units} unit(s), ${all.revenue} revenue, ${all.netProfit} net profit (margin ${all.netMargin}).`,
     bullets: [
       `Top product by net profit: ${byNetProfit[0]?.name ?? 'none'} (${byNetProfit[0]?.netProfit ?? '—'}).`,
       `Ad spend ${all.adSpend}, ROAS ${all.roas}, CPA ${all.cpa}.`,

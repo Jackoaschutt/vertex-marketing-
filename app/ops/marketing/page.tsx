@@ -1,172 +1,175 @@
 import { config } from '@/lib/commerce/config'
 import { formatMoney, formatRatio, safeDivide } from '@/lib/commerce/money'
-import { daysAgoIso } from '@/lib/commerce/analytics/profit'
-import { listAbandonedCarts, listAdMetrics, listEmailLog, listProducts } from '@/lib/commerce/db/repo'
-import { CHANNELS } from '@/lib/commerce/marketing/channels'
 import { isSellable } from '@/lib/commerce/research/scoring'
+import { computeProductPnl, daysAgoIso } from '@/lib/commerce/analytics/profit'
+import { listAdMetrics, listProducts, listSales } from '@/lib/commerce/db/repo'
 import { isMetaConfigured } from '@/lib/commerce/marketing/adapter-meta'
-import { Badge, Card, Empty, Note, Table } from '@/components/ops/ui'
+import { Badge, Card, Empty, Note, Stat, Table } from '@/components/ops/ui'
 import { SpendForm } from '@/components/ops/SpendForm'
 import { MetaPanel } from '@/components/ops/MetaPanel'
 
 export const dynamic = 'force-dynamic'
 
 export default async function OpsMarketing() {
-  const since = daysAgoIso(30).slice(0, 10)
-  const [products, metrics, carts, emails] = await Promise.all([
-    listProducts({}),
+  const since = daysAgoIso(29)
+  const [products, metrics, sales] = await Promise.all([
+    listProducts({ sort: 'name' }),
     listAdMetrics(since),
-    listAbandonedCarts(50),
-    listEmailLog(30),
+    listSales(since),
   ])
-  const currency = config.currency
 
-  const byChannel = new Map<string, { spend: number; revenue: number; purchases: number; clicks: number; impressions: number }>()
-  for (const m of metrics) {
-    const e = byChannel.get(m.channel) ?? { spend: 0, revenue: 0, purchases: 0, clicks: 0, impressions: 0 }
-    e.spend += m.spend_cents
-    e.revenue += m.revenue_cents
-    e.purchases += m.purchases
-    e.clicks += m.clicks
-    e.impressions += m.impressions
-    byChannel.set(m.channel, e)
-  }
+  const spend = metrics.reduce((sum, m) => sum + m.spend_cents, 0)
+  const clicks = metrics.reduce((sum, m) => sum + m.clicks, 0)
+  const impressions = metrics.reduce((sum, m) => sum + m.impressions, 0)
+  const revenue = sales.reduce((sum, s) => sum + s.revenue_cents - s.refunds_cents, 0)
+
+  const pnl = computeProductPnl(products, sales, metrics).filter(
+    (p) => p.summary.adSpendCents > 0
+  )
+  const unattributed = metrics.filter((m) => !m.product_id)
+  const unattributedSpend = unattributed.reduce((sum, m) => sum + m.spend_cents, 0)
+
+  const byChannel = new Map<string, number>()
+  for (const m of metrics) byChannel.set(m.channel, (byChannel.get(m.channel) ?? 0) + m.spend_cents)
+
+  const productName = (id: string | null) =>
+    id ? (products.find((p) => p.id === id)?.name ?? 'Unknown') : 'Unattributed'
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="commerce-display text-2xl text-ink-900">Marketing</h1>
-        <p className="mt-1 max-w-prose text-sm text-ink-600">
-          Ad spend entered here is real data — it feeds ROAS, CPA and net profit exactly as an API
-          import would.
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-600">
+          What you spent to get the revenue in your books. Meta can import itself; everything else
+          is entered by hand, and those figures are just as real.
         </p>
       </div>
 
-      <Card
-        title="Meta Ads"
-        action={<Badge tone={isMetaConfigured() ? 'REAL' : 'TODO'}>{isMetaConfigured() ? 'connected' : 'not configured'}</Badge>}
-      >
-        <MetaPanel
-          products={products.map((p) => ({ id: p.id, name: p.name }))}
-          sellableProducts={products
-            .filter((p) => p.published && isSellable(p.status))
-            .map((p) => ({ id: p.id, name: p.name, slug: p.slug }))}
-          currency={currency}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label="30-day ad spend" value={formatMoney(spend)} sub={`${metrics.length} row(s)`} />
+        <Stat
+          label="Blended ROAS"
+          value={formatRatio(safeDivide(revenue, spend))}
+          sub="Revenue ÷ all ad spend"
         />
+        <Stat
+          label="Clicks"
+          value={clicks.toLocaleString()}
+          sub={
+            impressions > 0
+              ? `${((clicks / impressions) * 100).toFixed(2)}% of ${impressions.toLocaleString()} impressions`
+              : 'No impressions recorded'
+          }
+        />
+        <Stat
+          label="Unattributed"
+          value={formatMoney(unattributedSpend)}
+          tone={unattributedSpend > 0 ? 'negative' : 'neutral'}
+          sub={`${unattributed.length} row(s) with no product`}
+        />
+      </div>
+
+      {unattributedSpend > 0 && (
+        <Note tone="warning">
+          <strong>{formatMoney(unattributedSpend)} of spend is not attached to a product.</strong>{' '}
+          It counts toward your total ad cost and whole-business profit, but not toward any
+          product&apos;s ROAS — so per-product figures look better than reality. Add a{' '}
+          <code>[vsp:&lt;product-slug&gt;]</code> marker to the campaign name, or map the campaign
+          below.
+        </Note>
+      )}
+
+      <Card title="Meta Ads">
+        {isMetaConfigured() ? (
+          <MetaPanel
+            products={products.map((p) => ({ id: p.id, name: p.name }))}
+            sellableProducts={products
+              .filter((p) => isSellable(p.status))
+              .map((p) => ({ id: p.id, name: p.name, slug: p.slug }))}
+            currency={config.currency}
+          />
+        ) : (
+          <Note>
+            Meta is not connected. Set <code>META_ACCESS_TOKEN</code> and{' '}
+            <code>META_AD_ACCOUNT_ID</code> to import spend automatically. Until then, enter it
+            below — the resulting ROAS and CPA are identical, they just are not automatic.
+          </Note>
+        )}
       </Card>
 
-      <Card title="Record ad spend manually">
+      <Card title="Record spend by hand">
         <SpendForm products={products.map((p) => ({ id: p.id, name: p.name }))} />
       </Card>
 
-      <Card title="Last 30 days by channel">
-        {byChannel.size === 0 ? (
-          <Empty
-            title="No ad spend recorded"
-            body="Until spend is recorded, ROAS and CPA cannot be computed and will show a dash rather than zero."
-          />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card title="Spend by channel">
+          {byChannel.size === 0 ? (
+            <p className="text-sm text-ink-600">Nothing recorded in the last 30 days.</p>
+          ) : (
+            <Table head={['Channel', '30-day spend']}>
+              {[...byChannel.entries()]
+                .sort((a, b) => b[1] - a[1])
+                .map(([channel, cents]) => (
+                  <tr key={channel}>
+                    <td className="py-2.5 pr-4 text-ink-900">{channel}</td>
+                    <td className="py-2.5 pr-4 tabular-nums text-ink-900">{formatMoney(cents)}</td>
+                  </tr>
+                ))}
+            </Table>
+          )}
+        </Card>
+
+        <Card title="Return per product">
+          {pnl.length === 0 ? (
+            <Empty
+              title="No product has spend against it"
+              body="Attribute spend to a product to see which one is actually paying for itself."
+            />
+          ) : (
+            <Table head={['Product', 'Spend', 'Net', 'ROAS']}>
+              {pnl.map(({ product, summary }) => (
+                <tr key={product.id}>
+                  <td className="py-2.5 pr-4 text-ink-900">{product.name}</td>
+                  <td className="py-2.5 pr-4 tabular-nums text-ink-600">
+                    {formatMoney(summary.adSpendCents)}
+                  </td>
+                  <td
+                    className={`py-2.5 pr-4 tabular-nums ${
+                      summary.netProfitCents >= 0 ? 'text-moss-500' : 'text-clay-600'
+                    }`}
+                  >
+                    {formatMoney(summary.netProfitCents)}
+                  </td>
+                  <td className="py-2.5 pr-4 tabular-nums text-ink-700">
+                    {formatRatio(summary.roas)}
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          )}
+        </Card>
+      </div>
+
+      <Card title="Recent spend rows">
+        {metrics.length === 0 ? (
+          <Empty title="Nothing recorded" body="Enter a day of spend above, or connect Meta." />
         ) : (
-          <Table head={['Channel', 'Spend', 'Attributed revenue', 'ROAS', 'Purchases', 'CPA', 'CTR']}>
-            {[...byChannel.entries()].map(([channel, v]) => (
-              <tr key={channel}>
-                <td className="py-2.5 pr-4 text-ink-900">{channel}</td>
-                <td className="py-2.5 pr-4 tabular-nums text-ink-900">{formatMoney(v.spend, currency)}</td>
-                <td className="py-2.5 pr-4 tabular-nums text-ink-900">{formatMoney(v.revenue, currency)}</td>
+          <Table head={['Day', 'Product', 'Channel', 'Campaign', 'Spend', 'Source']}>
+            {metrics.slice(0, 20).map((m) => (
+              <tr key={m.id}>
+                <td className="py-2.5 pr-4 tabular-nums text-ink-700">{m.day}</td>
+                <td className="py-2.5 pr-4 text-ink-900">{productName(m.product_id)}</td>
+                <td className="py-2.5 pr-4 text-ink-600">{m.channel}</td>
+                <td className="py-2.5 pr-4 text-xs text-ink-500">{m.campaign_ref ?? '—'}</td>
                 <td className="py-2.5 pr-4 tabular-nums text-ink-900">
-                  {formatRatio(safeDivide(v.revenue, v.spend))}
+                  {formatMoney(m.spend_cents)}
                 </td>
-                <td className="py-2.5 pr-4 tabular-nums text-ink-900">{v.purchases}</td>
-                <td className="py-2.5 pr-4 tabular-nums text-ink-900">
-                  {v.purchases > 0 ? formatMoney(Math.round(v.spend / v.purchases), currency) : '—'}
-                </td>
-                <td className="py-2.5 pr-4 tabular-nums text-ink-900">
-                  {v.impressions > 0 ? `${((v.clicks / v.impressions) * 100).toFixed(2)}%` : '—'}
+                <td className="py-2.5 pr-4">
+                  <Badge tone={m.source === 'manual' ? 'info' : 'positive'}>{m.source}</Badge>
                 </td>
               </tr>
             ))}
           </Table>
-        )}
-      </Card>
-
-      <Card title="Channel integrations">
-        <div className="mb-4">
-          <Note>
-            Manual entry and API import both write to the same table. If you enter spend by hand for
-            a day and then import that day from Meta, the two are stored under different campaign
-            references and will be <strong>summed</strong> — delete the manual row or skip the
-            import for overlapping days.
-          </Note>
-        </div>
-        <div className="space-y-3">
-          {CHANNELS.map((c) => (
-            <div key={c.id} className="rounded-xl border border-ink-200 p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge tone={c.status}>{c.status}</Badge>
-                <p className="font-medium text-ink-900">{c.label}</p>
-              </div>
-              <p className="mt-1.5 text-sm leading-relaxed text-ink-600">{c.note}</p>
-              {c.requires.length > 0 && (
-                <p className="mt-1 text-xs text-ink-500">Requires: {c.requires.join(', ')}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card title="Abandoned carts">
-        {carts.length === 0 ? (
-          <p className="text-sm text-ink-600">No unrecovered carts.</p>
-        ) : (
-          <Table head={['Email', 'Value', 'Items', 'Created', 'Reminder']}>
-            {carts.map((c) => (
-              <tr key={c.id}>
-                <td className="py-2.5 pr-4 text-ink-900">{c.email ?? '(not captured)'}</td>
-                <td className="py-2.5 pr-4 tabular-nums text-ink-900">{formatMoney(c.value_cents, currency)}</td>
-                <td className="py-2.5 pr-4 text-ink-700">{c.items.length}</td>
-                <td className="py-2.5 pr-4 text-ink-600">{c.created_at.slice(0, 16).replace('T', ' ')}</td>
-                <td className="py-2.5 pr-4 text-ink-600">
-                  {c.reminded_at ? c.reminded_at.slice(0, 10) : 'not sent'}
-                </td>
-              </tr>
-            ))}
-          </Table>
-        )}
-        <div className="mt-4">
-          <Note>
-            A recovery email is sent once, at least an hour after abandonment, only where an email
-            address was captured. It contains no discount code and no countdown.
-          </Note>
-        </div>
-      </Card>
-
-      <Card
-        title="Recent email"
-        action={<Badge tone={config.emailConfigured ? 'REAL' : 'MOCK'}>{config.emailConfigured ? 'resend' : 'console'}</Badge>}
-      >
-        {emails.length === 0 ? (
-          <p className="text-sm text-ink-600">Nothing sent yet.</p>
-        ) : (
-          <Table head={['Template', 'To', 'Subject', 'Transport', 'Status', 'When']}>
-            {emails.map((e) => (
-              <tr key={e.id}>
-                <td className="py-2.5 pr-4 text-ink-900">{e.template}</td>
-                <td className="py-2.5 pr-4 text-ink-700">{e.to_email}</td>
-                <td className="py-2.5 pr-4 text-ink-700">{e.subject}</td>
-                <td className="py-2.5 pr-4 text-ink-600">{e.transport}</td>
-                <td className="py-2.5 pr-4 text-ink-600">{e.status}</td>
-                <td className="py-2.5 pr-4 text-ink-600">{e.created_at.slice(0, 16).replace('T', ' ')}</td>
-              </tr>
-            ))}
-          </Table>
-        )}
-        {!config.emailConfigured && (
-          <div className="mt-4">
-            <Note tone="warning">
-              The console transport is active: emails are rendered and logged but never delivered.
-              Set <code>RESEND_API_KEY</code> and <code>COMMERCE_FROM_EMAIL</code> before launch, or
-              customers will never receive order confirmations.
-            </Note>
-          </div>
         )}
       </Card>
     </div>

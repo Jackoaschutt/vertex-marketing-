@@ -1,4 +1,9 @@
-// Domain types for Vesper Commerce.
+// Domain types.
+//
+// This is a private research and bookkeeping tool, not a shop: there are no
+// orders, customers or fulfilments here. Sales arrive as a hand-entered daily
+// ledger, and every financial figure is computed from it rather than stored.
+//
 // Money is always integer minor units (cents). See lib/commerce/money.ts.
 
 export type ProductStatus =
@@ -10,26 +15,6 @@ export type ProductStatus =
   | 'winner'
   | 'loser'
   | 'scaling'
-
-export type OrderStatus =
-  | 'received'
-  | 'validated'
-  | 'routed'
-  | 'submitted'
-  | 'fulfilled'
-  | 'delivered'
-  | 'needs_attention'
-  | 'cancelled'
-  | 'refunded'
-
-export type FulfillmentStatus =
-  | 'pending'
-  | 'submitted'
-  | 'processing'
-  | 'shipped'
-  | 'delivered'
-  | 'failed'
-  | 'cancelled'
 
 export type AdapterId = 'mock' | 'cj' | 'http'
 
@@ -78,7 +63,6 @@ export interface Product extends ScoreComponents {
   cost_cents: number
   shipping_cost_cents: number
   price_cents: number
-  compare_at_cents: number | null
 
   ship_days_min: number
   ship_days_max: number
@@ -87,37 +71,11 @@ export interface Product extends ScoreComponents {
   research_inputs: Record<string, unknown>
 
   status: ProductStatus
-  published: boolean
-  featured: boolean
-  position: number
-
-  ad_spend_cents: number
-  revenue_cents: number
-  orders_count: number
-  sessions_count: number
-  refunds_cents: number
-  refunds_count: number
-
-  meta_title: string | null
-  meta_description: string | null
+  /** Where this one is actually sold, so the ledger and the research agree. */
+  sell_channel: string | null
 
   date_discovered: string
   date_tested: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface ProductVariant {
-  id: string
-  product_id: string
-  sku: string
-  title: string
-  options: Record<string, string>
-  price_cents: number
-  cost_cents: number
-  stock: number | null
-  is_default: boolean
-  position: number
   created_at: string
   updated_at: string
 }
@@ -143,125 +101,97 @@ export interface ProductContent {
   created_at: string
 }
 
-export interface SupplierProductLink {
-  id: string
-  supplier_id: string
-  variant_id: string
-  supplier_sku: string
-  supplier_cost_cents: number
-  supplier_ship_cents: number
-  lead_days: number
-  is_primary: boolean
-  last_synced_at: string | null
-  created_at: string
-}
-
-/** A product with everything the storefront needs, assembled by the repository. */
+/** A product with everything a research view needs, assembled by the repository. */
 export interface ProductDetail {
   product: Product
-  variants: ProductVariant[]
   images: ProductImage[]
   content: GeneratedContent | null
   contentMeta: { generator: string; isAi: boolean; model: string | null } | null
   supplier: Supplier | null
 }
 
-export interface Customer {
+/**
+ * One day of sales for one product on one channel, typed in by hand.
+ *
+ * This is the only source of revenue truth. Everything the profit engine
+ * reports is computed from these rows plus ad spend and expenses — nothing is
+ * cached back onto the product.
+ */
+export interface SaleEntry {
   id: string
-  email: string
-  name: string | null
-  phone: string | null
-  marketing_opt_in: boolean
-  orders_count: number
-  spend_cents: number
-  first_order_at: string | null
-  last_order_at: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface Address {
-  name?: string
-  line1?: string
-  line2?: string
-  city?: string
-  state?: string
-  postal_code?: string
-  country?: string
-}
-
-export interface Attribution {
-  source?: string
-  medium?: string
-  campaign?: string
-  content?: string
-  term?: string
-  click_id?: string
-  landing_page?: string
-}
-
-export interface Order {
-  id: string
-  order_number: string
-  customer_id: string | null
-  email: string
-  currency: string
-
-  subtotal_cents: number
-  shipping_cents: number
-  tax_cents: number
-  discount_cents: number
-  total_cents: number
-  payment_fee_cents: number
-  cogs_cents: number
-  refund_cents: number
-
-  status: OrderStatus
-  attention_reason: string | null
-
-  shipping_address: Address
-  attribution: Attribution
-
-  stripe_session_id: string | null
-  stripe_payment_intent_id: string | null
-
-  placed_at: string
-  fulfilled_at: string | null
-  delivered_at: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface OrderItem {
-  id: string
-  order_id: string
+  day: string
   product_id: string | null
-  variant_id: string | null
-  supplier_id: string | null
-  sku: string
+  channel: string
+  units: number
+  revenue_cents: number
+  cogs_cents: number
+  shipping_cost_cents: number
+  fees_cents: number
+  refunds_cents: number
+  refund_units: number
+  note: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type NoteKind = 'note' | 'lesson' | 'idea' | 'source'
+
+/** A playbook entry: something learned, optionally tied to the product that taught it. */
+export interface PlaybookNote {
+  id: string
   title: string
-  quantity: number
-  unit_price_cents: number
-  unit_cost_cents: number
+  body: string
+  kind: NoteKind
+  tags: string[]
+  product_id: string | null
+  pinned: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ChecklistProgress {
+  id: string
+  product_id: string
+  stage: string
+  item_key: string
+  done: boolean
+  note: string | null
+  completed_at: string | null
   created_at: string
 }
 
-export interface Fulfillment {
+export type PostmortemOutcome = 'winner' | 'loser' | 'undecided'
+
+export interface Postmortem {
   id: string
-  order_id: string
-  supplier_id: string | null
-  supplier_ref: string | null
-  status: FulfillmentStatus
-  tracking_number: string | null
-  tracking_url: string | null
-  carrier: string | null
-  cost_cents: number
-  error_message: string | null
-  submitted_at: string | null
-  shipped_at: string | null
-  delivered_at: string | null
+  product_id: string
+  outcome: PostmortemOutcome
+  what_happened: string
+  what_worked: string
+  what_failed: string
+  next_time: string
+  /** Tagged causes, so patterns across products can be counted rather than felt. */
+  factors: string[]
+  /** Figures at the moment of writing, so the story cannot drift from the books. */
+  snapshot: Record<string, unknown>
   created_at: string
   updated_at: string
+}
+
+export type SignalSource = 'serpapi_trends' | 'serpapi_shopping' | 'manual'
+export type TrendDirection = 'rising' | 'flat' | 'falling' | 'unknown'
+
+/** A signal actually fetched from a provider. The payload is kept so any score can be traced back. */
+export interface ResearchSignal {
+  id: string
+  product_id: string | null
+  keyword: string
+  source: SignalSource
+  payload: Record<string, unknown>
+  trend_direction: TrendDirection | null
+  trend_score: number | null
+  competition_count: number | null
+  collected_at: string
 }
 
 export interface AdMetric {
@@ -313,29 +243,6 @@ export interface CommerceEvent {
   created_at: string
 }
 
-export interface EmailLogEntry {
-  id: string
-  template: string
-  to_email: string
-  subject: string
-  order_id: string | null
-  transport: string
-  status: 'sent' | 'failed' | 'skipped'
-  error: string | null
-  created_at: string
-}
-
-export interface AbandonedCart {
-  id: string
-  email: string | null
-  items: CartLine[]
-  value_cents: number
-  recovered: boolean
-  reminded_at: string | null
-  attribution: Attribution
-  created_at: string
-}
-
 export interface Setting {
   key: string
   value: unknown
@@ -343,36 +250,6 @@ export interface Setting {
 }
 
 // --- Cart -----------------------------------------------------------------
-
-/** What the browser stores. Deliberately carries no prices. */
-export interface CartLine {
-  variantId: string
-  qty: number
-}
-
-/** What the server returns after re-pricing a cart. */
-export interface PricedCartLine {
-  variantId: string
-  productId: string
-  slug: string
-  title: string
-  variantTitle: string
-  image: string | null
-  qty: number
-  unitPriceCents: number
-  lineTotalCents: number
-  available: boolean
-  reason?: string
-}
-
-export interface PricedCart {
-  lines: PricedCartLine[]
-  subtotalCents: number
-  shippingCents: number
-  totalCents: number
-  currency: string
-  hasUnavailable: boolean
-}
 
 // --- AI content -----------------------------------------------------------
 

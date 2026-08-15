@@ -8,8 +8,7 @@ import {
   getProductRow,
   logEvent,
   updateProduct,
-  updateVariant,
-  listVariantsForProducts,
+  listSalesForProduct,
 } from '@/lib/commerce/db/repo'
 import {
   canTransition,
@@ -135,18 +134,6 @@ export async function PATCH(request: NextRequest, ctx: { params: Promise<{ id: s
 
     const product = await updateProduct(id, patch)
 
-    // Keep the default variant's price in step with the product price so the
-    // storefront and the cart can never disagree.
-    if (patch.price_cents !== undefined || patch.cost_cents !== undefined) {
-      const variants = await listVariantsForProducts([id])
-      for (const variant of variants.filter((x) => x.is_default)) {
-        await updateVariant(variant.id, {
-          price_cents: (patch.price_cents as number) ?? variant.price_cents,
-          cost_cents: (patch.cost_cents as number) ?? variant.cost_cents,
-        })
-      }
-    }
-
     await logEvent({
       kind: 'product.updated',
       message: `${admin.email} updated "${product.name}".`,
@@ -166,10 +153,13 @@ export async function DELETE(_request: NextRequest, ctx: { params: Promise<{ id:
     const { id } = await ctx.params
     const product = await getProductRow(id)
     if (!product) return fail(404, 'Product not found.')
-    if (product.orders_count > 0) {
+    // Deleting a product cascades to its ledger rows, which would silently
+    // rewrite past months' profit. Refuse, and say what to do instead.
+    const sales = await listSalesForProduct(id)
+    if (sales.length > 0) {
       return fail(
         409,
-        `"${product.name}" has ${product.orders_count} order(s) against it. Unpublish it instead of deleting — deleting would break order history.`
+        `"${product.name}" has ${sales.length} ledger entr(ies) against it. Deleting it would remove that revenue from your books and change months you have already closed. Mark it a loser instead — that keeps the history and the lesson.`
       )
     }
     await deleteProduct(id)

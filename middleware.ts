@@ -1,68 +1,33 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import {
-  ATTRIBUTION_COOKIE,
-  ATTRIBUTION_MAX_AGE,
-  parseAttribution,
-  serializeAttribution,
-} from '@/lib/commerce/analytics/attribution'
 
 type CookieToSet = { name: string; value: string; options: CookieOptions }
 
 /**
- * Paths middleware must not gate.
+ * This is a private tool. There is no public surface at all — every path
+ * requires a session, and /ops additionally requires the email allowlist.
  *
- * Storefront pages and the checkout/webhook endpoints are genuinely public.
- * `/api/commerce/automations/run` is listed because it enforces its own dual
- * gate (an allowlisted admin session OR a CRON_SECRET bearer token) — a
+ * The one exception is `/api/commerce/automations/run`, which enforces its own
+ * dual gate (an allowlisted admin session OR a CRON_SECRET bearer token). A
  * session-only check here would lock out every scheduler.
  */
-function isCommercePublic(pathname: string): boolean {
-  return (
-    pathname === '/api/commerce/automations/run' ||
-    pathname === '/store' ||
-    pathname.startsWith('/store/') ||
-    pathname.startsWith('/store-media/') ||
-    pathname === '/store-sitemap.xml' ||
-    pathname === '/robots.txt' ||
-    pathname === '/api/commerce/cart/validate' ||
-    pathname === '/api/commerce/checkout' ||
-    pathname === '/api/commerce/contact' ||
-    pathname.startsWith('/api/commerce/webhooks/')
-  )
+function isSchedulerEndpoint(pathname: string): boolean {
+  return pathname === '/api/commerce/automations/run'
 }
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // The storefront is the site. Rewritten rather than redirected so the home
-  // page keeps the bare root URL.
+  // The dashboard is the app.
   if (pathname === '/') {
     const url = request.nextUrl.clone()
-    url.pathname = '/store'
-    return NextResponse.rewrite(url)
+    url.pathname = '/ops'
+    return NextResponse.redirect(url)
   }
 
   let supabaseResponse = NextResponse.next({ request })
 
-  // Capture last non-direct click on any storefront landing. First-party
-  // cookie, no third-party script, no personal data.
-  if (pathname === '/store' || pathname.startsWith('/store/')) {
-    const attribution = parseAttribution(request.nextUrl)
-    if (attribution) {
-      supabaseResponse.cookies.set(ATTRIBUTION_COOKIE, serializeAttribution(attribution), {
-        maxAge: ATTRIBUTION_MAX_AGE,
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: request.nextUrl.protocol === 'https:',
-        path: '/',
-      })
-    }
-  }
-
-  // Storefront and public commerce APIs never touch Supabase Auth — that keeps
-  // them fast and lets the store run with no auth backend configured at all.
-  if (isCommercePublic(pathname)) return supabaseResponse
+  if (isSchedulerEndpoint(pathname)) return supabaseResponse
 
   // Without an auth backend there is no session to read. Previously this threw
   // inside createServerClient and produced a 500 on every guarded route; fail
@@ -79,7 +44,7 @@ export async function middleware(request: NextRequest) {
       )
     }
     if (pathname === '/ops' || pathname.startsWith('/ops/')) return supabaseResponse
-    if (pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname === '/') {
+    if (pathname.startsWith('/login') || pathname.startsWith('/signup')) {
       return supabaseResponse
     }
     return NextResponse.redirect(new URL('/login', request.url))
@@ -104,9 +69,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const isPublic = pathname.startsWith('/login') ||
-    pathname.startsWith('/signup') ||
-    pathname === '/'
+  const isPublic = pathname.startsWith('/login') || pathname.startsWith('/signup')
 
   if (!user && !isPublic) {
     if (pathname.startsWith('/api/commerce/')) {

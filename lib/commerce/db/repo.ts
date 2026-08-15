@@ -1,30 +1,27 @@
 /**
- * Repositories — the only API the rest of the commerce system uses to reach
- * storage. Nothing above this file knows whether it is talking to Postgres or
- * the demo driver.
+ * Repositories — the only API the rest of the system uses to reach storage.
+ * Nothing above this file knows whether it is talking to Postgres or the demo
+ * driver.
  */
 
 import { getDriver, TABLES } from './index'
 import { eq, gte, inList, lte, type Filter } from './driver'
 import type {
-  AbandonedCart,
   AdMetric,
+  ChecklistProgress,
   CommerceEvent,
-  Customer,
-  EmailLogEntry,
   Expense,
-  Fulfillment,
-  Order,
-  OrderItem,
+  PlaybookNote,
+  Postmortem,
   Product,
   ProductContent,
   ProductDetail,
   ProductImage,
   ProductStatus,
-  ProductVariant,
   Recommendation,
+  ResearchSignal,
+  SaleEntry,
   Supplier,
-  SupplierProductLink,
 } from '../types'
 
 // --- Suppliers -------------------------------------------------------------
@@ -48,34 +45,24 @@ export async function updateSupplier(id: string, patch: Partial<Supplier>): Prom
 // --- Products --------------------------------------------------------------
 
 export interface ProductQuery {
-  published?: boolean
   status?: ProductStatus | ProductStatus[]
   category?: string
-  sort?: 'position' | 'price_asc' | 'price_desc' | 'newest' | 'score'
+  sort?: 'score' | 'newest' | 'name'
   limit?: number
 }
 
 export async function listProducts(q: ProductQuery = {}): Promise<Product[]> {
   const where: Filter[] = []
-  if (q.published !== undefined) where.push(eq('published', q.published))
   if (q.category) where.push(eq('category', q.category))
   if (Array.isArray(q.status)) where.push(inList('status', q.status))
   else if (q.status) where.push(eq('status', q.status))
 
-  const order = (() => {
-    switch (q.sort) {
-      case 'price_asc':
-        return { column: 'price_cents', asc: true }
-      case 'price_desc':
-        return { column: 'price_cents', asc: false }
-      case 'newest':
-        return { column: 'created_at', asc: false }
-      case 'score':
-        return { column: 'product_score', asc: false }
-      default:
-        return { column: 'position', asc: true }
-    }
-  })()
+  const order =
+    q.sort === 'newest'
+      ? { column: 'created_at', asc: false }
+      : q.sort === 'name'
+        ? { column: 'name', asc: true }
+        : { column: 'product_score', asc: false }
 
   return getDriver().select<Product>(TABLES.products, { where, order, limit: q.limit })
 }
@@ -90,11 +77,7 @@ export async function getProductRowBySlug(slug: string): Promise<Product | null>
 
 async function assemble(product: Product): Promise<ProductDetail> {
   const db = getDriver()
-  const [variants, images, contentRows, supplier] = await Promise.all([
-    db.select<ProductVariant>(TABLES.variants, {
-      where: [eq('product_id', product.id)],
-      order: { column: 'position' },
-    }),
+  const [images, contentRows, supplier] = await Promise.all([
     db.select<ProductImage>(TABLES.images, {
       where: [eq('product_id', product.id)],
       order: { column: 'position' },
@@ -112,7 +95,6 @@ async function assemble(product: Product): Promise<ProductDetail> {
   const latest = contentRows[0] ?? null
   return {
     product,
-    variants,
     images,
     content: latest?.payload ?? null,
     contentMeta: latest
@@ -144,26 +126,18 @@ export async function deleteProduct(id: string): Promise<void> {
   const db = getDriver()
   // The demo driver has no cascade, so children are removed explicitly. On
   // Postgres these are already ON DELETE CASCADE and this is a harmless no-op.
-  for (const table of [TABLES.variants, TABLES.images, TABLES.content]) {
+  for (const table of [
+    TABLES.images,
+    TABLES.content,
+    TABLES.sales,
+    TABLES.checklist,
+    TABLES.postmortems,
+    TABLES.signals,
+  ]) {
     const rows = await db.select<{ id: string }>(table, { where: [eq('product_id', id)] })
     for (const r of rows) await db.remove(table, r.id)
   }
   await db.remove(TABLES.products, id)
-}
-
-// --- Variants --------------------------------------------------------------
-
-export async function listVariantsByIds(ids: string[]): Promise<ProductVariant[]> {
-  if (ids.length === 0) return []
-  return getDriver().select<ProductVariant>(TABLES.variants, { where: [inList('id', ids)] })
-}
-
-export async function listVariantsForProducts(productIds: string[]): Promise<ProductVariant[]> {
-  if (productIds.length === 0) return []
-  return getDriver().select<ProductVariant>(TABLES.variants, {
-    where: [inList('product_id', productIds)],
-    order: { column: 'position' },
-  })
 }
 
 export async function listImagesForProducts(productIds: string[]): Promise<ProductImage[]> {
@@ -174,17 +148,6 @@ export async function listImagesForProducts(productIds: string[]): Promise<Produ
   })
 }
 
-export async function createVariant(row: Partial<ProductVariant>): Promise<ProductVariant> {
-  return getDriver().insert<ProductVariant>(TABLES.variants, row as Record<string, unknown>)
-}
-
-export async function updateVariant(
-  id: string,
-  patch: Partial<ProductVariant>
-): Promise<ProductVariant> {
-  return getDriver().update<ProductVariant>(TABLES.variants, id, patch as Record<string, unknown>)
-}
-
 export async function createImage(row: Partial<ProductImage>): Promise<ProductImage> {
   return getDriver().insert<ProductImage>(TABLES.images, row as Record<string, unknown>)
 }
@@ -193,131 +156,128 @@ export async function saveContent(row: Partial<ProductContent>): Promise<Product
   return getDriver().insert<ProductContent>(TABLES.content, row as Record<string, unknown>)
 }
 
-export async function supplierLinkForVariant(
-  variantId: string
-): Promise<SupplierProductLink | null> {
-  return getDriver().selectOne<SupplierProductLink>(TABLES.supplierProducts, {
-    where: [eq('variant_id', variantId), eq('is_primary', true)],
-  })
-}
+// --- Sales ledger ----------------------------------------------------------
+// Hand-entered, one row per product per channel per day. This is the only
+// source of revenue truth in the system.
 
-export async function listSupplierLinks(): Promise<SupplierProductLink[]> {
-  return getDriver().select<SupplierProductLink>(TABLES.supplierProducts)
-}
-
-export async function updateSupplierLink(
-  id: string,
-  patch: Partial<SupplierProductLink>
-): Promise<SupplierProductLink> {
-  return getDriver().update<SupplierProductLink>(
-    TABLES.supplierProducts,
-    id,
-    patch as Record<string, unknown>
-  )
-}
-
-// --- Customers -------------------------------------------------------------
-
-export async function findCustomerByEmail(email: string): Promise<Customer | null> {
-  return getDriver().selectOne<Customer>(TABLES.customers, {
-    where: [eq('email', email.toLowerCase())],
-  })
-}
-
-export async function upsertCustomer(email: string, patch: Partial<Customer>): Promise<Customer> {
-  const db = getDriver()
-  const existing = await findCustomerByEmail(email)
-  if (existing) return db.update<Customer>(TABLES.customers, existing.id, patch as Record<string, unknown>)
-  return db.insert<Customer>(TABLES.customers, {
-    email: email.toLowerCase(),
-    ...patch,
-  } as Record<string, unknown>)
-}
-
-export async function listCustomers(limit = 200): Promise<Customer[]> {
-  return getDriver().select<Customer>(TABLES.customers, {
-    order: { column: 'last_order_at', asc: false },
-    limit,
-  })
-}
-
-// --- Orders ----------------------------------------------------------------
-
-export interface OrderQuery {
-  status?: Order['status'] | Order['status'][]
-  since?: string
-  until?: string
-  limit?: number
-}
-
-export async function listOrders(q: OrderQuery = {}): Promise<Order[]> {
+export async function listSales(since?: string, until?: string): Promise<SaleEntry[]> {
   const where: Filter[] = []
-  if (Array.isArray(q.status)) where.push(inList('status', q.status))
-  else if (q.status) where.push(eq('status', q.status))
-  if (q.since) where.push(gte('placed_at', q.since))
-  if (q.until) where.push(lte('placed_at', q.until))
-  return getDriver().select<Order>(TABLES.orders, {
+  if (since) where.push(gte('day', since))
+  if (until) where.push(lte('day', until))
+  return getDriver().select<SaleEntry>(TABLES.sales, {
     where,
-    order: { column: 'placed_at', asc: false },
-    limit: q.limit,
+    order: { column: 'day', asc: false },
   })
 }
 
-export async function getOrder(id: string): Promise<Order | null> {
-  return getDriver().selectOne<Order>(TABLES.orders, { where: [eq('id', id)] })
+export async function listSalesForProduct(productId: string): Promise<SaleEntry[]> {
+  return getDriver().select<SaleEntry>(TABLES.sales, {
+    where: [eq('product_id', productId)],
+    order: { column: 'day', asc: false },
+  })
 }
 
-export async function getOrderByStripeSession(sessionId: string): Promise<Order | null> {
-  return getDriver().selectOne<Order>(TABLES.orders, { where: [eq('stripe_session_id', sessionId)] })
+/**
+ * Upserts on (day, product_id, channel), so re-entering a day corrects it
+ * instead of double-counting. Getting this wrong would silently inflate
+ * revenue, which is the worst thing a bookkeeping tool can do.
+ */
+export async function upsertSale(row: Partial<SaleEntry>): Promise<SaleEntry> {
+  return getDriver().upsert<SaleEntry>(TABLES.sales, row as Record<string, unknown>, [
+    'day',
+    'product_id',
+    'channel',
+  ])
 }
 
-export async function createOrder(row: Partial<Order>): Promise<Order> {
-  return getDriver().insert<Order>(TABLES.orders, row as Record<string, unknown>)
+export async function deleteSale(id: string): Promise<void> {
+  return getDriver().remove(TABLES.sales, id)
 }
 
-export async function updateOrder(id: string, patch: Partial<Order>): Promise<Order> {
-  return getDriver().update<Order>(TABLES.orders, id, patch as Record<string, unknown>)
-}
+// --- Playbook --------------------------------------------------------------
 
-export async function createOrderItems(rows: Partial<OrderItem>[]): Promise<OrderItem[]> {
-  return getDriver().insertMany<OrderItem>(TABLES.orderItems, rows as Record<string, unknown>[])
-}
-
-export async function listOrderItems(orderId: string): Promise<OrderItem[]> {
-  return getDriver().select<OrderItem>(TABLES.orderItems, { where: [eq('order_id', orderId)] })
-}
-
-export async function listOrderItemsForOrders(orderIds: string[]): Promise<OrderItem[]> {
-  if (orderIds.length === 0) return []
-  return getDriver().select<OrderItem>(TABLES.orderItems, { where: [inList('order_id', orderIds)] })
-}
-
-export async function listFulfillments(orderId: string): Promise<Fulfillment[]> {
-  return getDriver().select<Fulfillment>(TABLES.fulfillments, { where: [eq('order_id', orderId)] })
-}
-
-export async function listAllFulfillments(limit = 500): Promise<Fulfillment[]> {
-  return getDriver().select<Fulfillment>(TABLES.fulfillments, {
+export async function listNotes(productId?: string): Promise<PlaybookNote[]> {
+  const where: Filter[] = []
+  if (productId) where.push(eq('product_id', productId))
+  return getDriver().select<PlaybookNote>(TABLES.notes, {
+    where,
     order: { column: 'created_at', asc: false },
-    limit,
   })
 }
 
-export async function createFulfillment(row: Partial<Fulfillment>): Promise<Fulfillment> {
-  return getDriver().insert<Fulfillment>(TABLES.fulfillments, row as Record<string, unknown>)
+export async function getNote(id: string): Promise<PlaybookNote | null> {
+  return getDriver().selectOne<PlaybookNote>(TABLES.notes, { where: [eq('id', id)] })
 }
 
-export async function updateFulfillment(
-  id: string,
-  patch: Partial<Fulfillment>
-): Promise<Fulfillment> {
-  return getDriver().update<Fulfillment>(TABLES.fulfillments, id, patch as Record<string, unknown>)
+export async function createNote(row: Partial<PlaybookNote>): Promise<PlaybookNote> {
+  return getDriver().insert<PlaybookNote>(TABLES.notes, row as Record<string, unknown>)
 }
 
-export async function findFulfillmentByRef(ref: string): Promise<Fulfillment | null> {
-  return getDriver().selectOne<Fulfillment>(TABLES.fulfillments, {
-    where: [eq('supplier_ref', ref)],
+export async function updateNote(id: string, patch: Partial<PlaybookNote>): Promise<PlaybookNote> {
+  return getDriver().update<PlaybookNote>(TABLES.notes, id, patch as Record<string, unknown>)
+}
+
+export async function deleteNote(id: string): Promise<void> {
+  return getDriver().remove(TABLES.notes, id)
+}
+
+// --- Stage checklists ------------------------------------------------------
+
+export async function listChecklist(productId: string): Promise<ChecklistProgress[]> {
+  return getDriver().select<ChecklistProgress>(TABLES.checklist, {
+    where: [eq('product_id', productId)],
   })
+}
+
+export async function listAllChecklistProgress(): Promise<ChecklistProgress[]> {
+  return getDriver().select<ChecklistProgress>(TABLES.checklist)
+}
+
+export async function setChecklistItem(row: Partial<ChecklistProgress>): Promise<ChecklistProgress> {
+  return getDriver().upsert<ChecklistProgress>(TABLES.checklist, row as Record<string, unknown>, [
+    'product_id',
+    'stage',
+    'item_key',
+  ])
+}
+
+// --- Post-mortems ----------------------------------------------------------
+
+export async function getPostmortem(productId: string): Promise<Postmortem | null> {
+  return getDriver().selectOne<Postmortem>(TABLES.postmortems, {
+    where: [eq('product_id', productId)],
+  })
+}
+
+export async function listPostmortems(): Promise<Postmortem[]> {
+  return getDriver().select<Postmortem>(TABLES.postmortems, {
+    order: { column: 'created_at', asc: false },
+  })
+}
+
+export async function savePostmortem(row: Partial<Postmortem>): Promise<Postmortem> {
+  return getDriver().upsert<Postmortem>(TABLES.postmortems, row as Record<string, unknown>, [
+    'product_id',
+  ])
+}
+
+// --- Research signals ------------------------------------------------------
+
+export async function listSignals(productId?: string): Promise<ResearchSignal[]> {
+  const where: Filter[] = []
+  if (productId) where.push(eq('product_id', productId))
+  return getDriver().select<ResearchSignal>(TABLES.signals, {
+    where,
+    order: { column: 'collected_at', asc: false },
+  })
+}
+
+export async function saveSignal(row: Partial<ResearchSignal>): Promise<ResearchSignal> {
+  return getDriver().upsert<ResearchSignal>(TABLES.signals, row as Record<string, unknown>, [
+    'product_id',
+    'keyword',
+    'source',
+  ])
 }
 
 // --- Marketing & finance ---------------------------------------------------
@@ -402,54 +362,6 @@ export async function clearOpenRecommendations(): Promise<void> {
   const db = getDriver()
   const open = await listRecommendations('open')
   for (const r of open) await db.remove(TABLES.recommendations, r.id)
-}
-
-// --- Email -----------------------------------------------------------------
-
-export async function findEmailLog(
-  orderId: string | null,
-  template: string
-): Promise<EmailLogEntry | null> {
-  if (!orderId) return null
-  return getDriver().selectOne<EmailLogEntry>(TABLES.emailLog, {
-    where: [eq('order_id', orderId), eq('template', template)],
-  })
-}
-
-export async function recordEmail(row: Partial<EmailLogEntry>): Promise<EmailLogEntry> {
-  return getDriver().insert<EmailLogEntry>(TABLES.emailLog, row as Record<string, unknown>)
-}
-
-export async function listEmailLog(limit = 100): Promise<EmailLogEntry[]> {
-  return getDriver().select<EmailLogEntry>(TABLES.emailLog, {
-    order: { column: 'created_at', asc: false },
-    limit,
-  })
-}
-
-// --- Abandoned carts -------------------------------------------------------
-
-export async function recordAbandonedCart(row: Partial<AbandonedCart>): Promise<AbandonedCart> {
-  return getDriver().insert<AbandonedCart>(TABLES.abandonedCarts, row as Record<string, unknown>)
-}
-
-export async function listAbandonedCarts(limit = 100): Promise<AbandonedCart[]> {
-  return getDriver().select<AbandonedCart>(TABLES.abandonedCarts, {
-    where: [eq('recovered', false)],
-    order: { column: 'created_at', asc: false },
-    limit,
-  })
-}
-
-export async function updateAbandonedCart(
-  id: string,
-  patch: Partial<AbandonedCart>
-): Promise<AbandonedCart> {
-  return getDriver().update<AbandonedCart>(
-    TABLES.abandonedCarts,
-    id,
-    patch as Record<string, unknown>
-  )
 }
 
 // --- Settings --------------------------------------------------------------

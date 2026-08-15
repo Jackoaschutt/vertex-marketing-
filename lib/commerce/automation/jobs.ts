@@ -5,36 +5,28 @@
  * POST /api/commerce/automations/run (admin session or CRON_SECRET), so any
  * scheduler works.
  *
- * Nothing here mutates a live product's price or status. Jobs produce
- * recommendations; a human applies them. Automating money-affecting changes
- * without review is the wrong default for a store taking real payments.
+ * Nothing here edits a product. Jobs produce recommendations and the owner
+ * decides. That matters more in a research tool than it did in a shop: the
+ * whole point is to build the operator's judgement, not to replace it.
  */
 
-import { safeDivide } from '../money'
-import { formatMoney, formatRatio } from '../money'
-import { adapterFor } from '../suppliers/registry'
-import { sendTemplate } from '../email'
-import { computeProductPnl, daysAgoIso } from '../analytics/profit'
+import { formatMoney, formatRatio, safeDivide } from '../money'
+import { computeProductPnl, daysAgoIso, todayIso, unattributedAdSpend } from '../analytics/profit'
 import {
   clearOpenRecommendations,
   createRecommendation,
   getSetting,
-  getSupplier,
   listAdMetrics,
-  listAbandonedCarts,
-  listOrderItemsForOrders,
-  listOrders,
+  listAllChecklistProgress,
+  listPostmortems,
   listProducts,
   listRecommendations,
-  listSupplierLinks,
-  listVariantsByIds,
+  listSales,
   logEvent,
-  updateAbandonedCart,
-  updateSupplierLink,
 } from '../db/repo'
-import { syncOrderTracking } from '../orders/pipeline'
 import { isMetaConfigured, MetaApiError } from '../marketing/adapter-meta'
 import { importMetaMetrics } from '../marketing/import'
+import { CHECKLISTS, stageForStatus } from '../research/checklist'
 import type { Recommendation } from '../types'
 
 export interface JobReport {
@@ -71,185 +63,114 @@ async function recommend(
 
 // --- DAILY -----------------------------------------------------------------
 
-/** Supplier inventory drift and low stock. */
-export async function jobInventory(): Promise<JobReport> {
-  const report: JobReport = { job: 'supplier-inventory', checked: 0, findings: [], errors: [] }
-  const threshold = await getSetting<number>('low_stock_threshold', 10)
-  const links = await listSupplierLinks()
-  const variants = await listVariantsByIds(links.map((l) => l.variant_id))
-
-  for (const link of links) {
-    const variant = variants.find((v) => v.id === link.variant_id)
-    if (!variant) continue
-    report.checked += 1
-    try {
-      const supplier = await getSupplier(link.supplier_id)
-      const adapter = adapterFor(supplier)
-      const level = await adapter.getInventory(link.supplier_sku)
-      if (level.available === null) continue
-
-      await updateSupplierLink(link.id, { last_synced_at: level.checkedAt })
-
-      if (level.available <= 0) {
-        report.findings.push(`${variant.sku}: supplier reports out of stock.`)
-        await recommend({
-          kind: 'restock',
-          severity: 'critical',
-          product_id: variant.product_id,
-          title: `${variant.sku} is out of stock at the supplier`,
-          body: 'Unpublish the variant or switch to a backup supplier before more orders come in.',
-          evidence: { supplierSku: link.supplier_sku, available: 0 },
-        })
-      } else if (level.available <= threshold) {
-        report.findings.push(`${variant.sku}: only ${level.available} units at the supplier.`)
-        await recommend({
-          kind: 'restock',
-          severity: 'warning',
-          product_id: variant.product_id,
-          title: `${variant.sku} is low at the supplier (${level.available} units)`,
-          body: `Below the ${threshold}-unit threshold. Consider pausing ads for this variant or sourcing a backup.`,
-          evidence: { supplierSku: link.supplier_sku, available: level.available, threshold },
-        })
-      }
-    } catch (err) {
-      report.errors.push(`${link.supplier_sku}: ${String(err)}`)
-    }
-  }
-  return report
-}
-
-/** Supplier price drift that erodes margin. */
-export async function jobPriceDrift(): Promise<JobReport> {
-  const report: JobReport = { job: 'supplier-price', checked: 0, findings: [], errors: [] }
-  const links = await listSupplierLinks()
-  const variants = await listVariantsByIds(links.map((l) => l.variant_id))
-
-  for (const link of links) {
-    const variant = variants.find((v) => v.id === link.variant_id)
-    if (!variant) continue
-    report.checked += 1
-    try {
-      const supplier = await getSupplier(link.supplier_id)
-      const adapter = adapterFor(supplier)
-      const price = await adapter.getPrice(link.supplier_sku)
-      const delta = price.costCents - link.supplier_cost_cents
-      if (Math.abs(delta) < 25) continue
-
-      const pct = safeDivide(delta, link.supplier_cost_cents)
-      const direction = delta > 0 ? 'increased' : 'decreased'
-      report.findings.push(
-        `${variant.sku}: supplier cost ${direction} by ${formatMoney(Math.abs(delta))}.`
-      )
-      if (delta > 0) {
-        const newMargin = safeDivide(variant.price_cents - price.costCents, variant.price_cents)
-        await recommend({
-          kind: 'price',
-          severity: newMargin !== null && newMargin < 0.45 ? 'critical' : 'warning',
-          product_id: variant.product_id,
-          title: `Supplier cost for ${variant.sku} rose by ${formatMoney(delta)}`,
-          body: `Cost is now ${formatMoney(price.costCents)} against a ${formatMoney(variant.price_cents)} retail price. Gross margin would be ${newMargin === null ? '—' : `${(newMargin * 100).toFixed(0)}%`}. Review the retail price or the supplier.`,
-          evidence: { was: link.supplier_cost_cents, now: price.costCents, changePct: pct },
-        })
-      }
-    } catch (err) {
-      report.errors.push(`${link.supplier_sku}: ${String(err)}`)
-    }
-  }
-  return report
-}
-
-/** Orders needing a human, and orders shipped without tracking. */
-export async function jobOrderHealth(): Promise<JobReport> {
-  const report: JobReport = { job: 'order-health', checked: 0, findings: [], errors: [] }
-
-  const stuck = await listOrders({ status: 'needs_attention', limit: 200 })
-  report.checked += stuck.length
-  if (stuck.length > 0) {
-    report.findings.push(`${stuck.length} order(s) need attention.`)
-    await recommend({
-      kind: 'investigate',
-      severity: 'critical',
-      title: `${stuck.length} order(s) are stuck and need attention`,
-      body: stuck
-        .slice(0, 5)
-        .map((o) => `${o.order_number}: ${o.attention_reason ?? 'unknown reason'}`)
-        .join('\n'),
-      evidence: { orderNumbers: stuck.map((o) => o.order_number) },
-    })
-  }
-
-  // Poll tracking for anything submitted or fulfilled but not yet delivered.
-  const open = await listOrders({ status: ['submitted', 'fulfilled'], limit: 300 })
-  report.checked += open.length
-  for (const order of open) {
-    try {
-      const sync = await syncOrderTracking(order.id)
-      if (sync.updated > 0) report.findings.push(`${order.order_number}: ${sync.updated} fulfilment update(s).`)
-    } catch (err) {
-      report.errors.push(`${order.order_number}: ${String(err)}`)
-    }
-  }
-
-  // Submitted a while ago with no movement at all.
-  const cutoff = daysAgoIso(5)
-  const stale = open.filter((o) => o.status === 'submitted' && o.placed_at < cutoff)
-  if (stale.length > 0) {
-    report.findings.push(`${stale.length} order(s) submitted over 5 days ago with no tracking.`)
-    await recommend({
-      kind: 'investigate',
-      severity: 'warning',
-      title: `${stale.length} order(s) have no tracking after 5 days`,
-      body: 'Chase the supplier. Customers usually contact support at about day seven.',
-      evidence: { orderNumbers: stale.map((o) => o.order_number) },
-    })
-  }
-
-  return report
-}
-
-/** Abandoned-cart recovery email, sent once, at least an hour after abandonment. */
-export async function jobAbandonedCarts(): Promise<JobReport> {
-  const report: JobReport = { job: 'abandoned-carts', checked: 0, findings: [], errors: [] }
-  const carts = await listAbandonedCarts(100)
-  const hourAgo = Date.now() - 3_600_000
-
-  for (const cart of carts) {
-    report.checked += 1
-    if (!cart.email || cart.reminded_at) continue
-    if (Date.parse(cart.created_at) > hourAgo) continue
-    try {
-      const result = await sendTemplate('abandoned_cart', cart.email, {
-        cartValueCents: cart.value_cents,
-      })
-      await updateAbandonedCart(cart.id, { reminded_at: new Date().toISOString() })
-      if (result.sent) report.findings.push(`Reminder sent to ${cart.email}.`)
-    } catch (err) {
-      report.errors.push(`${cart.email}: ${String(err)}`)
-    }
-  }
-  return report
-}
-
 /**
- * Pulls yesterday and today from Meta before the ROAS check runs, so
- * recommendations are made against current spend rather than a stale snapshot.
+ * Bookkeeping hygiene.
  *
- * A 3-day window rather than 1: Meta's attribution keeps revising recent days
- * for up to 72 hours, and the import is idempotent, so re-pulling corrects
- * earlier figures instead of double-counting them.
+ * A hand-kept ledger fails quietly: you stop entering for a few days and every
+ * figure downstream is wrong without anything looking broken. This job is the
+ * thing that notices.
  */
+export async function jobLedgerGaps(): Promise<JobReport> {
+  const report: JobReport = { job: 'ledger-gaps', checked: 0, findings: [], errors: [] }
+  const since = daysAgoIso(13)
+  const [sales, adMetrics] = await Promise.all([listSales(since), listAdMetrics(since)])
+
+  const salesDays = new Set(sales.map((s) => s.day))
+  const adDays = new Set(adMetrics.map((m) => m.day))
+
+  // Yesterday backwards — today is legitimately incomplete.
+  const missing: string[] = []
+  for (let i = 1; i <= 13; i += 1) {
+    const day = daysAgoIso(i)
+    if (adDays.has(day) && !salesDays.has(day)) missing.push(day)
+  }
+  report.checked = 13
+
+  if (missing.length > 0) {
+    report.findings.push(
+      `${missing.length} day(s) have ad spend recorded but no sales entry: ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? '…' : ''}`
+    )
+    await recommend({
+      kind: 'investigate',
+      severity: missing.length >= 3 ? 'critical' : 'warning',
+      title: `${missing.length} day(s) of spend with no sales entered`,
+      body: `Those days count advertising cost against zero revenue, so profit, ROAS and every per-product figure are understated until the ledger is filled in.\n\nMissing: ${missing.join(', ')}\n\nIf a day genuinely had no sales, enter it as zero — that is a fact, and it stops this appearing again.`,
+      evidence: { missing },
+    })
+  } else if (salesDays.size === 0 && adDays.size === 0) {
+    report.findings.push('No ledger activity in the last 14 days.')
+  } else {
+    report.findings.push('Ledger has no gaps against recorded ad spend.')
+  }
+
+  const orphanSpend = unattributedAdSpend(adMetrics)
+  if (orphanSpend > 0) {
+    report.findings.push(
+      `${formatMoney(orphanSpend)} of ad spend is not attached to a product, so it lands in the whole-business total but no product P&L.`
+    )
+  }
+
+  return report
+}
+
+/** Daily advertising check against the target ROAS. */
+export async function jobAdPerformance(): Promise<JobReport> {
+  const report: JobReport = { job: 'ad-performance', checked: 0, findings: [], errors: [] }
+  const targetRoas = await getSetting<number>('target_roas', 2)
+  const since = daysAgoIso(7)
+  const [products, sales, adMetrics] = await Promise.all([
+    listProducts({}),
+    listSales(since),
+    listAdMetrics(since),
+  ])
+
+  if (adMetrics.length === 0) {
+    report.findings.push('No ad spend recorded in the last 7 days — advertising checks were skipped.')
+    return report
+  }
+
+  for (const { product, summary } of computeProductPnl(products, sales, adMetrics)) {
+    if (summary.adSpendCents === 0) continue
+    report.checked += 1
+
+    if (summary.roas !== null && summary.roas < targetRoas * 0.6) {
+      report.findings.push(`${product.name}: ROAS ${formatRatio(summary.roas)} is well below target.`)
+      await recommend({
+        kind: 'pause',
+        severity: 'critical',
+        product_id: product.id,
+        title: `Pause spend on ${product.name} — ROAS ${formatRatio(summary.roas)}`,
+        body: `7-day spend ${formatMoney(summary.adSpendCents)} produced ${formatMoney(summary.revenueCents)} revenue and ${formatMoney(summary.netProfitCents)} net. Target ROAS is ${targetRoas}.`,
+        evidence: { roas: summary.roas, targetRoas, spendCents: summary.adSpendCents },
+      })
+    } else if (summary.roas !== null && summary.roas >= targetRoas * 1.5 && summary.units >= 5) {
+      report.findings.push(`${product.name}: ROAS ${formatRatio(summary.roas)} is well above target.`)
+      await recommend({
+        kind: 'scale',
+        severity: 'info',
+        product_id: product.id,
+        title: `Consider more budget on ${product.name} — ROAS ${formatRatio(summary.roas)}`,
+        body: `7-day: ${summary.units} unit(s), ${formatMoney(summary.netProfitCents)} net after ad spend. Raise budget in steps of 20–30% and re-check in 3 days.`,
+        evidence: { roas: summary.roas, units: summary.units },
+      })
+    }
+  }
+  return report
+}
+
+/** Pulls real spend from Meta so the ROAS checks above run against fresh figures. */
 export async function jobImportAdSpend(): Promise<JobReport> {
   const report: JobReport = { job: 'ad-import', checked: 0, findings: [], errors: [] }
 
   if (!isMetaConfigured()) {
     report.findings.push(
-      'Meta Ads is not configured — skipped. Ad spend entered manually in /ops/marketing is still counted.'
+      'Meta Ads is not configured — skipped. Ad spend entered by hand in /ops/books is still counted.'
     )
     return report
   }
 
-  const to = new Date().toISOString().slice(0, 10)
-  const from = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10)
+  const to = todayIso()
+  const from = daysAgoIso(3)
 
   try {
     const summary = await importMetaMetrics(from, to)
@@ -258,9 +179,7 @@ export async function jobImportAdSpend(): Promise<JobReport> {
       `Imported ${summary.rowsWritten} Meta row(s) for ${from}..${to}: ${formatMoney(summary.spendCents)} spend, ${summary.purchases} purchase(s).`
     )
     if (summary.unattributed > 0) {
-      report.findings.push(
-        `${summary.unattributed} row(s) could not be attributed to a product.`
-      )
+      report.findings.push(`${summary.unattributed} row(s) could not be attributed to a product.`)
       await recommend({
         kind: 'investigate',
         severity: 'warning',
@@ -274,14 +193,15 @@ export async function jobImportAdSpend(): Promise<JobReport> {
     }
   } catch (err) {
     // An import failure must not be silent: without it, ROAS below is computed
-    // against stale spend and the recommendations that follow are wrong.
-    const message = err instanceof MetaApiError ? `${err.message}${err.hint ? ` — ${err.hint}` : ''}` : String(err)
+    // against stale spend and every recommendation that follows is wrong.
+    const message =
+      err instanceof MetaApiError ? `${err.message}${err.hint ? ` — ${err.hint}` : ''}` : String(err)
     report.errors.push(message)
     await recommend({
       kind: 'investigate',
       severity: 'critical',
       title: 'Meta ad spend import failed',
-      body: `Today's advertising figures may be stale, which makes every ROAS-based recommendation below unreliable until it is fixed.\n\n${message}`,
+      body: `Today's advertising figures may be stale, which makes every ROAS-based recommendation unreliable until it is fixed.\n\n${message}`,
       evidence: { from, to },
     })
   }
@@ -289,151 +209,114 @@ export async function jobImportAdSpend(): Promise<JobReport> {
   return report
 }
 
-/** Daily advertising check against the target ROAS. */
-export async function jobAdPerformance(): Promise<JobReport> {
-  const report: JobReport = { job: 'ad-performance', checked: 0, findings: [], errors: [] }
-  const targetRoas = await getSetting<number>('target_roas', 2)
-  const since = daysAgoIso(7)
-  const [products, orders, adMetrics] = await Promise.all([
-    listProducts({}),
-    listOrders({ since, limit: 1000 }),
-    listAdMetrics(since.slice(0, 10)),
-  ])
+// --- WEEKLY ----------------------------------------------------------------
 
-  if (adMetrics.length === 0) {
-    report.findings.push('No ad metrics recorded in the last 7 days — advertising checks were skipped.')
-    return report
-  }
+/** Products sitting in a stage with their checklist unfinished. */
+export async function jobStalledResearch(): Promise<JobReport> {
+  const report: JobReport = { job: 'stalled-research', checked: 0, findings: [], errors: [] }
+  const [products, progress] = await Promise.all([listProducts({}), listAllChecklistProgress()])
+  const twoWeeksAgo = Date.now() - 14 * 86_400_000
 
-  const items = await listOrderItemsForOrders(orders.map((o) => o.id))
-  const pnl = computeProductPnl(products, orders, items, adMetrics)
+  for (const product of products) {
+    const stage = stageForStatus(product.status)
+    if (!stage) continue
+    const items = CHECKLISTS[stage]
+    const done = progress.filter((p) => p.product_id === product.id && p.stage === stage && p.done)
+    if (done.length >= items.length) continue
 
-  for (const p of pnl) {
-    if (p.adSpendCents === 0) continue
     report.checked += 1
-    if (p.roas !== null && p.roas < targetRoas * 0.6) {
-      report.findings.push(`${p.product.name}: ROAS ${formatRatio(p.roas)} is well below target.`)
-      await recommend({
-        kind: 'pause',
-        severity: 'critical',
-        product_id: p.product.id,
-        title: `Pause spend on ${p.product.name} — ROAS ${formatRatio(p.roas)}`,
-        body: `7-day spend ${formatMoney(p.adSpendCents)} produced ${formatMoney(p.revenueCents)} revenue and ${formatMoney(p.netProfitCents)} net. Target ROAS is ${targetRoas}.`,
-        evidence: { roas: p.roas, targetRoas, spendCents: p.adSpendCents },
-      })
-    } else if (p.roas !== null && p.roas >= targetRoas * 1.5 && p.orders >= 5) {
-      report.findings.push(`${p.product.name}: ROAS ${formatRatio(p.roas)} is well above target.`)
-      await recommend({
-        kind: 'scale',
-        severity: 'info',
-        product_id: p.product.id,
-        title: `Consider more budget on ${p.product.name} — ROAS ${formatRatio(p.roas)}`,
-        body: `7-day: ${p.orders} orders, ${formatMoney(p.netProfitCents)} net after ad spend. Raise budget in steps of 20–30% and re-check in 3 days.`,
-        evidence: { roas: p.roas, orders: p.orders },
-      })
-    }
+    if (new Date(product.updated_at).getTime() > twoWeeksAgo) continue
+
+    const outstanding = items.filter((i) => !done.some((d) => d.item_key === i.key))
+    report.findings.push(
+      `${product.name} has been in "${stage}" for over two weeks with ${outstanding.length} step(s) outstanding.`
+    )
+    await recommend({
+      kind: 'investigate',
+      severity: 'info',
+      product_id: product.id,
+      title: `${product.name} is stalled in ${stage}`,
+      body: `Untouched for more than two weeks. Outstanding:\n\n${outstanding.map((i) => `• ${i.label}`).join('\n')}\n\nFinish it or reject it — a candidate parked indefinitely costs attention without producing an answer.`,
+      evidence: { stage, outstanding: outstanding.map((i) => i.key) },
+    })
   }
   return report
 }
 
-// --- WEEKLY ----------------------------------------------------------------
-
-/** Classify winners and losers, and suggest what to test, pause and reprice. */
+/** Classify winners and losers, and ask for a post-mortem where one is missing. */
 export async function jobWeeklyReview(): Promise<JobReport> {
   const report: JobReport = { job: 'weekly-review', checked: 0, findings: [], errors: [] }
   const targetRoas = await getSetting<number>('target_roas', 2)
   const since = daysAgoIso(30)
-  const [products, orders, adMetrics] = await Promise.all([
+  const [products, sales, adMetrics, postmortems] = await Promise.all([
     listProducts({}),
-    listOrders({ since, limit: 2000 }),
-    listAdMetrics(since.slice(0, 10)),
+    listSales(since),
+    listAdMetrics(since),
+    listPostmortems(),
   ])
-  const items = await listOrderItemsForOrders(orders.map((o) => o.id))
-  const pnl = computeProductPnl(products, orders, items, adMetrics)
 
-  for (const p of pnl) {
+  const pnl = computeProductPnl(products, sales, adMetrics)
+  const written = new Set(postmortems.map((p) => p.product_id))
+
+  for (const { product, summary } of pnl) {
+    if (summary.units === 0 && summary.adSpendCents === 0) continue
     report.checked += 1
-    const status = p.product.status
 
-    if (status === 'testing' && p.orders >= 10 && p.roas !== null) {
-      if (p.roas >= targetRoas) {
-        await recommend({
-          kind: 'scale',
-          severity: 'info',
-          product_id: p.product.id,
-          title: `${p.product.name} looks like a winner — mark it and scale`,
-          body: `${p.orders} orders at ROAS ${formatRatio(p.roas)} over 30 days, net ${formatMoney(p.netProfitCents)}. Move it from testing to winner and raise budget.`,
-          evidence: { orders: p.orders, roas: p.roas },
-        })
-        report.findings.push(`${p.product.name}: winner candidate.`)
-      } else {
-        await recommend({
-          kind: 'pause',
-          severity: 'warning',
-          product_id: p.product.id,
-          title: `${p.product.name} is not clearing the bar in testing`,
-          body: `${p.orders} orders at ROAS ${formatRatio(p.roas)} against a ${targetRoas} target, net ${formatMoney(p.netProfitCents)}. Either change the creative angle or mark it a loser and move on.`,
-          evidence: { orders: p.orders, roas: p.roas, targetRoas },
-        })
-        report.findings.push(`${p.product.name}: loser candidate.`)
-      }
+    const testing = product.status === 'testing'
+    if (testing && summary.roas !== null && summary.roas >= targetRoas && summary.units >= 10) {
+      report.findings.push(`${product.name} looks like a winner over 30 days.`)
+      await recommend({
+        kind: 'scale',
+        severity: 'info',
+        product_id: product.id,
+        title: `Mark ${product.name} a winner?`,
+        body: `30-day: ${summary.units} unit(s), ${formatMoney(summary.revenueCents)} revenue, ${formatMoney(summary.netProfitCents)} net, ROAS ${formatRatio(summary.roas)} against a ${targetRoas} target.`,
+        evidence: { roas: summary.roas, units: summary.units },
+      })
     }
 
-    if (p.refundRate !== null && p.refundRate > 0.08 && p.orders >= 10) {
+    if (testing && summary.netProfitCents < 0 && summary.adSpendCents > 0) {
+      report.findings.push(`${product.name} is losing money over 30 days.`)
+      await recommend({
+        kind: 'pause',
+        severity: 'warning',
+        product_id: product.id,
+        title: `${product.name} is ${formatMoney(Math.abs(summary.netProfitCents))} down over 30 days`,
+        body: `Spend ${formatMoney(summary.adSpendCents)} against ${formatMoney(summary.revenueCents)} revenue. Kill it or change one variable — creative, price or audience — and give it a defined budget and deadline.`,
+        evidence: { netProfitCents: summary.netProfitCents },
+      })
+    }
+
+    // A finished product with no post-mortem is a lesson thrown away.
+    const finished = product.status === 'winner' || product.status === 'loser'
+    if (finished && !written.has(product.id)) {
+      report.findings.push(`${product.name} is finished but has no post-mortem.`)
       await recommend({
         kind: 'investigate',
-        severity: 'warning',
-        product_id: p.product.id,
-        title: `${p.product.name} refund rate is ${(p.refundRate * 100).toFixed(0)}%`,
-        body: 'Above 8% usually means the product page is overselling, the delivery window is unclear, or quality is inconsistent. Check the recent order notes before spending more.',
-        evidence: { refundRate: p.refundRate, orders: p.orders },
-      })
-    }
-
-    const margin = safeDivide(p.grossProfitCents, p.revenueCents)
-    if (margin !== null && margin < 0.45 && p.orders >= 5) {
-      await recommend({
-        kind: 'price',
-        severity: 'warning',
-        product_id: p.product.id,
-        title: `${p.product.name} gross margin is ${(margin * 100).toFixed(0)}%`,
-        body: `Below 45% there is little room for ad costs. Options: raise price, negotiate cost, or bundle it with a higher-margin product.`,
-        evidence: { margin, revenueCents: p.revenueCents },
-      })
-    }
-
-    if (
-      (status === 'winner' || status === 'scaling') &&
-      p.adSpendCents > 0 &&
-      p.roas !== null &&
-      p.roas < targetRoas
-    ) {
-      await recommend({
-        kind: 'creative',
         severity: 'info',
-        product_id: p.product.id,
-        title: `Refresh creative for ${p.product.name}`,
-        body: `A previously strong product has fallen to ROAS ${formatRatio(p.roas)}. That pattern usually means creative fatigue rather than a broken product. Generate new angles from the product's AI content set and test three at once.`,
-        evidence: { roas: p.roas },
+        product_id: product.id,
+        title: `Write the post-mortem for ${product.name}`,
+        body: `It ended as a ${product.status} and nothing has been recorded about why. The pattern analysis across your products is only as good as the post-mortems behind it — five minutes now is worth more than the next product test.`,
+        evidence: { status: product.status },
       })
     }
   }
 
-  // What to test next: highest-scoring approved products with no ad spend yet.
-  const untested = products
-    .filter((p) => p.status === 'approved' && p.ad_spend_cents === 0)
-    .sort((a, b) => b.product_score - a.product_score)
-    .slice(0, 3)
-  for (const p of untested) {
+  const margins = pnl.filter((p) => p.summary.grossMargin !== null && p.summary.grossMargin < 0.2)
+  if (margins.length > 0) {
+    report.findings.push(`${margins.length} product(s) are running under a 20% gross margin.`)
     await recommend({
-      kind: 'investigate',
-      severity: 'info',
-      product_id: p.id,
-      title: `Test ${p.name} next (score ${p.product_score}/100)`,
-      body: 'Approved, never advertised, and the highest-scoring candidate not yet in market.',
-      evidence: { score: p.product_score },
+      kind: 'price',
+      severity: 'warning',
+      title: `${margins.length} product(s) under 20% gross margin`,
+      body: `Before advertising is even counted:\n\n${margins
+        .map(
+          (p) =>
+            `• ${p.product.name}: ${p.summary.grossMargin !== null ? `${Math.round(p.summary.grossMargin * 100)}%` : '—'} on ${formatMoney(p.summary.revenueCents)}`
+        )
+        .join('\n')}\n\nA thin gross margin leaves nothing to pay for ads, and no amount of scale fixes it.`,
+      evidence: { count: margins.length },
     })
-    report.findings.push(`${p.name}: queued as a test candidate.`)
   }
 
   return report
@@ -441,50 +324,54 @@ export async function jobWeeklyReview(): Promise<JobReport> {
 
 // --- Runner ----------------------------------------------------------------
 
-export async function runAutomations(which: 'daily' | 'weekly' | 'all' = 'daily'): Promise<AutomationRun> {
-  const startedAt = new Date().toISOString()
+const DAILY = [jobImportAdSpend, jobLedgerGaps, jobAdPerformance]
+const WEEKLY = [jobStalledResearch, jobWeeklyReview]
 
-  // Recommendations are regenerated each run rather than accumulating, so the
-  // list always reflects current state instead of a growing pile of history.
+export async function runAutomations(
+  which: 'daily' | 'weekly' | 'all' = 'daily'
+): Promise<AutomationRun> {
+  const startedAt = new Date().toISOString()
+  const before = (await listRecommendations('open')).length
+
+  // Open recommendations are replaced rather than appended, so the list is
+  // always "what is true now" instead of an ever-growing pile.
   await clearOpenRecommendations()
 
+  const jobs = which === 'daily' ? DAILY : which === 'weekly' ? WEEKLY : [...DAILY, ...WEEKLY]
   const reports: JobReport[] = []
-  // Order matters: the import runs before the ROAS check so recommendations
-  // are made against fresh spend.
-  const daily = [
-    jobInventory,
-    jobPriceDrift,
-    jobOrderHealth,
-    jobAbandonedCarts,
-    jobImportAdSpend,
-    jobAdPerformance,
-  ]
-  const weekly = [jobWeeklyReview]
 
-  const toRun = which === 'daily' ? daily : which === 'weekly' ? weekly : [...daily, ...weekly]
-
-  for (const job of toRun) {
+  for (const job of jobs) {
     try {
       reports.push(await job())
     } catch (err) {
-      reports.push({
-        job: job.name,
-        checked: 0,
-        findings: [],
-        errors: [`Job threw: ${String(err)}`],
+      // One failing job must not abort the run, and must not pass unnoticed.
+      const name = job.name || 'unknown'
+      reports.push({ job: name, checked: 0, findings: [], errors: [String(err)] })
+      await logEvent({
+        kind: 'automation.job_failed',
+        level: 'error',
+        message: `Job ${name} threw: ${String(err)}`,
       })
     }
   }
 
-  const recommendationsCreated = (await listRecommendations('open')).length
-
+  const after = (await listRecommendations('open')).length
   const finishedAt = new Date().toISOString()
+
   await logEvent({
     kind: 'automation.run',
     level: reports.some((r) => r.errors.length > 0) ? 'warn' : 'info',
-    message: `Automation run (${which}): ${reports.length} job(s), ${recommendationsCreated} recommendation(s).`,
-    data: { reports },
+    message: `Ran ${which}: ${reports.length} job(s), ${after} recommendation(s) open.`,
+    data: { which, reports, previousOpen: before },
   })
 
-  return { ran: which, startedAt, finishedAt, reports, recommendationsCreated }
+  return { ran: which, startedAt, finishedAt, reports, recommendationsCreated: after }
 }
+
+/** Exported for the ops UI so it can name the jobs before running them. */
+export const JOB_NAMES = {
+  daily: ['ad-import', 'ledger-gaps', 'ad-performance'],
+  weekly: ['stalled-research', 'weekly-review'],
+}
+
+export { safeDivide }

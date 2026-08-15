@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" width="800" height="1000" role="img">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#f4efe6"/><stop offset="1" stop-color="#e3dbcd"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.34" cy="0.3" r="0.62">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3a342d"/><stop offset="0.45" stop-color="#5c534a"/><stop offset="1" stop-color="#2c2721"/>
+    </linearGradient>
+    <linearGradient id="warm" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd9a3"/><stop offset="1" stop-color="#e9a765"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="26"/>
+    </filter>
+  </defs>
+  <rect width="800" height="1000" fill="url(#bg)"/>
+  <rect width="800" height="1000" fill="url(#glow)"/>
+  <ellipse cx="400" cy="812" rx="230" ry="34" fill="#1c1a17" opacity="0.13" filter="url(#soft)"/>
+  <circle cx="400" cy="360" r="170" fill="url(#warm)" opacity="0.30" filter="url(#soft)"/>
+  <path d="M400 232c74 0 134 60 134 134v14H266v-14c0-74 60-134 134-134z" fill="url(#metal)"/>
+  <path d="M272 380h256a8 8 0 0 1 8 8v10H264v-10a8 8 0 0 1 8-8z" fill="#241f1a"/>
+  <rect x="286" y="398" width="228" height="26" rx="13" fill="url(#warm)"/>
+  <rect x="388" y="424" width="24" height="322" fill="url(#metal)"/>
+  <ellipse cx="400" cy="762" rx="132" ry="26" fill="#3a342d"/>
+  <ellipse cx="400" cy="752" rx="132" ry="26" fill="#4a423a"/>
+  <circle cx="470" cy="742" r="13" fill="#241f1a"/>
+</svg>

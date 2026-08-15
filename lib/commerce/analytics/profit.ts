@@ -1,223 +1,209 @@
 /**
- * Profit engine.
+ * The books.
  *
- * Revenue is never reported as profit. Every figure below is derived from
- * stored integer cents; nothing is estimated or interpolated. Rates return null
- * when the denominator is zero so the UI can render "—" instead of a
- * misleading 0% or NaN.
+ * Every figure here is computed from three hand-entered sources and nothing
+ * else: the sales ledger (ds_sales), ad spend (ds_ad_metrics) and other costs
+ * (ds_expenses). No total is cached back onto a product, because a bookkeeping
+ * tool with two answers to "what did this earn" is worse than useless.
+ *
+ * Three rules this file exists to enforce:
+ *
+ *   1. Revenue is not profit. They are separate fields all the way through and
+ *      are never conflated in a return value or a label.
+ *   2. Refunds reduce revenue. A refunded sale is not income.
+ *   3. A rate with no denominator is null, not zero. Zero ad spend does not
+ *      mean infinite ROAS, and no sales does not mean a 0% margin.
  */
 
-import { paymentFee, safeDivide } from '../money'
-import {
-  listAdMetrics,
-  listExpenses,
-  listOrderItemsForOrders,
-  listOrders,
-  listProducts,
-} from '../db/repo'
-import type { AdMetric, Expense, Order, OrderItem, Product } from '../types'
-
-/** Orders that represent money actually taken. */
-const REVENUE_STATUSES: Order['status'][] = [
-  'received',
-  'validated',
-  'routed',
-  'submitted',
-  'fulfilled',
-  'delivered',
-  'needs_attention',
-  'refunded',
-]
+import { safeDivide } from '../money'
+import { listAdMetrics, listExpenses, listProducts, listSales } from '../db/repo'
+import type { AdMetric, Expense, Product, SaleEntry } from '../types'
 
 export interface ProfitSummary {
-  orders: number
-  units: number
-  grossRevenueCents: number
-  discountsCents: number
+  /** Money taken, after refunds. */
+  revenueCents: number
   refundsCents: number
-  netRevenueCents: number
+  /** What the goods and their inbound shipping cost. */
   cogsCents: number
-  shippingCostCents: number
-  grossProfitCents: number
-  paymentFeesCents: number
+  /** Payment processing and marketplace fees. */
+  feesCents: number
   adSpendCents: number
-  otherExpensesCents: number
+  /** Everything that is neither COGS nor advertising. */
+  expensesCents: number
+
+  /** revenue − COGS. Says nothing about whether the business made money. */
+  grossProfitCents: number
+  /** gross − fees − ad spend − expenses. This is the number that matters. */
   netProfitCents: number
-  /** netProfit / netRevenue */
-  netMargin: number | null
-  /** grossProfit / netRevenue */
+
+  units: number
+  refundUnits: number
+
+  /** null when there is no denominator — never a misleading zero. */
   grossMargin: number | null
-  aovCents: number | null
+  netMargin: number | null
   roas: number | null
+  /** Ad cost per unit sold. */
   cpaCents: number | null
+  revenuePerUnitCents: number | null
   refundRate: number | null
-  sessions: number
-  conversionRate: number | null
 }
 
 export const EMPTY_SUMMARY: ProfitSummary = {
-  orders: 0,
-  units: 0,
-  grossRevenueCents: 0,
-  discountsCents: 0,
+  revenueCents: 0,
   refundsCents: 0,
-  netRevenueCents: 0,
   cogsCents: 0,
-  shippingCostCents: 0,
-  grossProfitCents: 0,
-  paymentFeesCents: 0,
+  feesCents: 0,
   adSpendCents: 0,
-  otherExpensesCents: 0,
+  expensesCents: 0,
+  grossProfitCents: 0,
   netProfitCents: 0,
-  netMargin: null,
+  units: 0,
+  refundUnits: 0,
   grossMargin: null,
-  aovCents: null,
+  netMargin: null,
   roas: null,
   cpaCents: null,
+  revenuePerUnitCents: null,
   refundRate: null,
-  sessions: 0,
-  conversionRate: null,
 }
 
 export interface ProfitInputs {
-  orders: Order[]
-  items: OrderItem[]
+  sales: SaleEntry[]
   adMetrics: AdMetric[]
   expenses: Expense[]
-  sessions?: number
-  feePercent?: number
-  feeFixedCents?: number
 }
 
-export function computeProfit(input: ProfitInputs): ProfitSummary {
-  const feePercent = input.feePercent ?? 2.9
-  const feeFixed = input.feeFixedCents ?? 30
+export function computeProfit({ sales, adMetrics, expenses }: ProfitInputs): ProfitSummary {
+  let gross = 0
+  let refunds = 0
+  let cogs = 0
+  let fees = 0
+  let units = 0
+  let refundUnits = 0
 
-  const counted = input.orders.filter((o) => REVENUE_STATUSES.includes(o.status))
-  const countedIds = new Set(counted.map((o) => o.id))
-  const items = input.items.filter((i) => countedIds.has(i.order_id))
+  for (const s of sales) {
+    gross += s.revenue_cents
+    refunds += s.refunds_cents
+    // Inbound shipping is part of what the goods cost us, not an overhead.
+    cogs += s.cogs_cents + s.shipping_cost_cents
+    fees += s.fees_cents
+    units += s.units
+    refundUnits += s.refund_units
+  }
 
-  const grossRevenueCents = counted.reduce((s, o) => s + o.subtotal_cents, 0)
-  const discountsCents = counted.reduce((s, o) => s + o.discount_cents, 0)
-  const refundsCents = counted.reduce((s, o) => s + o.refund_cents, 0)
-  const netRevenueCents = grossRevenueCents - discountsCents - refundsCents
+  const adSpend = adMetrics.reduce((sum, m) => sum + m.spend_cents, 0)
+  const expenseTotal = expenses.reduce((sum, e) => sum + e.amount_cents, 0)
 
-  const cogsCents = items.reduce((s, i) => s + i.unit_cost_cents * i.quantity, 0)
-  const shippingCostCents = counted.reduce((s, o) => s + o.shipping_cents, 0)
-  const units = items.reduce((s, i) => s + i.quantity, 0)
-
-  // Gross profit keeps the shipping the customer paid on the revenue side and
-  // the supplier's landed cost on the cost side; net of the two is what the
-  // COGS line already carries, so shipping revenue is not double-counted here.
-  const grossProfitCents = netRevenueCents - cogsCents
-
-  const paymentFeesCents = counted.reduce(
-    (s, o) => s + (o.payment_fee_cents || paymentFee(o.total_cents, feePercent, feeFixed)),
-    0
-  )
-  const adSpendCents = input.adMetrics.reduce((s, m) => s + m.spend_cents, 0)
-  const otherExpensesCents = input.expenses.reduce((s, e) => s + e.amount_cents, 0)
-
-  const netProfitCents =
-    grossProfitCents - paymentFeesCents - adSpendCents - otherExpensesCents
-
-  const refundedOrders = counted.filter((o) => o.refund_cents > 0).length
-  const purchases = counted.length
+  const revenue = gross - refunds
+  const grossProfit = revenue - cogs
+  const netProfit = grossProfit - fees - adSpend - expenseTotal
+  const netUnits = units - refundUnits
 
   return {
-    orders: purchases,
+    revenueCents: revenue,
+    refundsCents: refunds,
+    cogsCents: cogs,
+    feesCents: fees,
+    adSpendCents: adSpend,
+    expensesCents: expenseTotal,
+    grossProfitCents: grossProfit,
+    netProfitCents: netProfit,
     units,
-    grossRevenueCents,
-    discountsCents,
-    refundsCents,
-    netRevenueCents,
-    cogsCents,
-    shippingCostCents,
-    grossProfitCents,
-    paymentFeesCents,
-    adSpendCents,
-    otherExpensesCents,
-    netProfitCents,
-    netMargin: safeDivide(netProfitCents, netRevenueCents),
-    grossMargin: safeDivide(grossProfitCents, netRevenueCents),
-    aovCents: purchases > 0 ? Math.round(grossRevenueCents / purchases) : null,
-    roas: safeDivide(netRevenueCents, adSpendCents),
-    cpaCents: purchases > 0 && adSpendCents > 0 ? Math.round(adSpendCents / purchases) : null,
-    refundRate: safeDivide(refundedOrders, purchases),
-    sessions: input.sessions ?? 0,
-    conversionRate: input.sessions ? safeDivide(purchases, input.sessions) : null,
+    refundUnits,
+    grossMargin: safeDivide(grossProfit, revenue),
+    netMargin: safeDivide(netProfit, revenue),
+    roas: safeDivide(revenue, adSpend),
+    cpaCents: netUnits > 0 ? Math.round(adSpend / netUnits) : null,
+    revenuePerUnitCents: netUnits > 0 ? Math.round(revenue / netUnits) : null,
+    refundRate: safeDivide(refundUnits, units),
   }
 }
 
 export interface ProductPnl {
   product: Product
-  orders: number
-  units: number
-  revenueCents: number
-  cogsCents: number
-  grossProfitCents: number
-  adSpendCents: number
-  netProfitCents: number
-  roas: number | null
-  cpaCents: number | null
-  conversionRate: number | null
-  refundRate: number | null
+  summary: ProfitSummary
 }
 
+/**
+ * Per-product P&L.
+ *
+ * Ad spend that could not be attributed to a product (`product_id` null) is
+ * deliberately excluded here and reported separately by the caller. Spreading
+ * it evenly would invent a number; dropping it silently would make the parts
+ * disagree with the whole.
+ */
 export function computeProductPnl(
   products: Product[],
-  orders: Order[],
-  items: OrderItem[],
+  sales: SaleEntry[],
   adMetrics: AdMetric[]
 ): ProductPnl[] {
-  const counted = orders.filter((o) => REVENUE_STATUSES.includes(o.status))
-  const orderById = new Map(counted.map((o) => [o.id, o]))
+  const byProduct = new Map<string, { sales: SaleEntry[]; ads: AdMetric[] }>()
+  const bucket = (id: string) => {
+    let b = byProduct.get(id)
+    if (!b) {
+      b = { sales: [], ads: [] }
+      byProduct.set(id, b)
+    }
+    return b
+  }
+
+  for (const s of sales) if (s.product_id) bucket(s.product_id).sales.push(s)
+  for (const m of adMetrics) if (m.product_id) bucket(m.product_id).ads.push(m)
 
   return products
     .map((product) => {
-      const productItems = items.filter(
-        (i) => i.product_id === product.id && orderById.has(i.order_id)
-      )
-      const orderIds = new Set(productItems.map((i) => i.order_id))
-      const revenueCents = productItems.reduce((s, i) => s + i.unit_price_cents * i.quantity, 0)
-      const cogsCents = productItems.reduce((s, i) => s + i.unit_cost_cents * i.quantity, 0)
-      const units = productItems.reduce((s, i) => s + i.quantity, 0)
-      const adSpendCents = adMetrics
-        .filter((m) => m.product_id === product.id)
-        .reduce((s, m) => s + m.spend_cents, 0)
-      const grossProfitCents = revenueCents - cogsCents
-      const refunded = [...orderIds].filter((id) => (orderById.get(id)?.refund_cents ?? 0) > 0).length
-
+      const b = byProduct.get(product.id)
       return {
         product,
-        orders: orderIds.size,
-        units,
-        revenueCents,
-        cogsCents,
-        grossProfitCents,
-        adSpendCents,
-        netProfitCents: grossProfitCents - adSpendCents,
-        roas: safeDivide(revenueCents, adSpendCents),
-        cpaCents: orderIds.size > 0 && adSpendCents > 0 ? Math.round(adSpendCents / orderIds.size) : null,
-        conversionRate: product.sessions_count
-          ? safeDivide(orderIds.size, product.sessions_count)
-          : null,
-        refundRate: safeDivide(refunded, orderIds.size),
+        summary: b
+          ? computeProfit({ sales: b.sales, adMetrics: b.ads, expenses: [] })
+          : EMPTY_SUMMARY,
       }
     })
-    .sort((a, b) => b.netProfitCents - a.netProfitCents)
+    .sort((a, b) => b.summary.netProfitCents - a.summary.netProfitCents)
 }
 
-// --- Convenience loaders ---------------------------------------------------
+/** Ad spend with no product attached. Reported, never spread or dropped. */
+export function unattributedAdSpend(adMetrics: AdMetric[]): number {
+  return adMetrics.filter((m) => !m.product_id).reduce((sum, m) => sum + m.spend_cents, 0)
+}
 
 export function daysAgoIso(days: number): string {
-  return new Date(Date.now() - days * 86_400_000).toISOString()
+  return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10)
 }
 
-export function startOfTodayIso(): string {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d.toISOString()
+export function todayIso(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+export interface DailyPoint {
+  day: string
+  revenueCents: number
+  adSpendCents: number
+  netProfitCents: number
+}
+
+/** One point per day across the window, including days with no activity. */
+export function buildDailySeries(
+  sales: SaleEntry[],
+  adMetrics: AdMetric[],
+  days: number
+): DailyPoint[] {
+  const out: DailyPoint[] = []
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const day = daysAgoIso(i)
+    const daySales = sales.filter((s) => s.day === day)
+    const dayAds = adMetrics.filter((m) => m.day === day)
+    const summary = computeProfit({ sales: daySales, adMetrics: dayAds, expenses: [] })
+    out.push({
+      day,
+      revenueCents: summary.revenueCents,
+      adSpendCents: summary.adSpendCents,
+      netProfitCents: summary.netProfitCents,
+    })
+  }
+  return out
 }
 
 export interface DashboardData {
@@ -225,68 +211,37 @@ export interface DashboardData {
   week: ProfitSummary
   month: ProfitSummary
   allTime: ProfitSummary
+  series: DailyPoint[]
   productPnl: ProductPnl[]
-  dailySeries: { day: string; revenueCents: number; profitCents: number; adSpendCents: number }[]
+  unattributedAdSpendCents: number
+  hasAnyData: boolean
 }
 
 export async function loadDashboard(): Promise<DashboardData> {
-  const since = daysAgoIso(90)
-  const [orders, products, adMetrics, expenses] = await Promise.all([
-    listOrders({ since, limit: 2000 }),
+  const monthStart = daysAgoIso(29)
+  const [products, sales, adMetrics, expenses] = await Promise.all([
     listProducts({}),
-    listAdMetrics(since.slice(0, 10)),
-    listExpenses(since.slice(0, 10)),
+    listSales(),
+    listAdMetrics(),
+    listExpenses(),
   ])
-  const items = await listOrderItemsForOrders(orders.map((o) => o.id))
 
-  const sessionsTotal = products.reduce((s, p) => s + p.sessions_count, 0)
+  const within = (since: string) => ({
+    sales: sales.filter((s) => s.day >= since),
+    adMetrics: adMetrics.filter((m) => m.day >= since),
+    expenses: expenses.filter((e) => e.day >= since),
+  })
 
-  const window = (fromIso: string): ProfitSummary => {
-    const o = orders.filter((x) => x.placed_at >= fromIso)
-    const ids = new Set(o.map((x) => x.id))
-    const fromDay = fromIso.slice(0, 10)
-    return computeProfit({
-      orders: o,
-      items: items.filter((i) => ids.has(i.order_id)),
-      adMetrics: adMetrics.filter((m) => m.day >= fromDay),
-      expenses: expenses.filter((e) => e.day >= fromDay),
-    })
-  }
-
-  // Daily series for charts — 30 days, always dense so the chart has no gaps.
-  const dailySeries: DashboardData['dailySeries'] = []
-  for (let i = 29; i >= 0; i--) {
-    const dayStart = new Date()
-    dayStart.setHours(0, 0, 0, 0)
-    dayStart.setDate(dayStart.getDate() - i)
-    const dayEnd = new Date(dayStart.getTime() + 86_400_000)
-    const key = dayStart.toISOString().slice(0, 10)
-    const dayOrders = orders.filter(
-      (o) => o.placed_at >= dayStart.toISOString() && o.placed_at < dayEnd.toISOString()
-    )
-    const ids = new Set(dayOrders.map((o) => o.id))
-    const summary = computeProfit({
-      orders: dayOrders,
-      items: items.filter((it) => ids.has(it.order_id)),
-      adMetrics: adMetrics.filter((m) => m.day === key),
-      expenses: expenses.filter((e) => e.day === key),
-    })
-    dailySeries.push({
-      day: key,
-      revenueCents: summary.netRevenueCents,
-      profitCents: summary.netProfitCents,
-      adSpendCents: summary.adSpendCents,
-    })
-  }
-
-  const allTime = computeProfit({ orders, items, adMetrics, expenses, sessions: sessionsTotal })
+  const monthWindow = within(monthStart)
 
   return {
-    today: window(startOfTodayIso()),
-    week: window(daysAgoIso(7)),
-    month: window(daysAgoIso(30)),
-    allTime,
-    productPnl: computeProductPnl(products, orders, items, adMetrics),
-    dailySeries,
+    today: computeProfit(within(todayIso())),
+    week: computeProfit(within(daysAgoIso(6))),
+    month: computeProfit(monthWindow),
+    allTime: computeProfit({ sales, adMetrics, expenses }),
+    series: buildDailySeries(monthWindow.sales, monthWindow.adMetrics, 30),
+    productPnl: computeProductPnl(products, sales, adMetrics),
+    unattributedAdSpendCents: unattributedAdSpend(adMetrics),
+    hasAnyData: sales.length > 0 || adMetrics.length > 0 || expenses.length > 0,
   }
 }

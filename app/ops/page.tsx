@@ -1,9 +1,8 @@
 import Link from 'next/link'
-import { config } from '@/lib/commerce/config'
 import { formatMoney, formatPercent, formatRatio } from '@/lib/commerce/money'
 import { loadDashboard } from '@/lib/commerce/analytics/profit'
-import { listOrders, listRecommendations } from '@/lib/commerce/db/repo'
-import { SUGGESTED_QUESTIONS } from '@/lib/commerce/ai/analyst'
+import { listEvents, listPostmortems, listRecommendations } from '@/lib/commerce/db/repo'
+import { CHECKLISTS, stageForStatus } from '@/lib/commerce/research/checklist'
 import { AnalystPanel } from '@/components/ops/AnalystPanel'
 import { RevenueChart } from '@/components/ops/RevenueChart'
 import { Badge, Card, Empty, Note, Stat, StatusBadge, Table } from '@/components/ops/ui'
@@ -11,192 +10,214 @@ import { Badge, Card, Empty, Note, Stat, StatusBadge, Table } from '@/components
 export const dynamic = 'force-dynamic'
 
 export default async function OpsOverview() {
-  const [dashboard, attention, recommendations] = await Promise.all([
+  const [dashboard, recommendations, postmortems, events] = await Promise.all([
     loadDashboard(),
-    listOrders({ status: 'needs_attention', limit: 10 }),
     listRecommendations('open'),
+    listPostmortems(),
+    listEvents(8),
   ])
 
-  const { today, week, month, allTime, productPnl, dailySeries } = dashboard
-  const ranked = productPnl.filter((p) => p.orders > 0)
-  const best = ranked[0]
-  const worst = ranked[ranked.length - 1]
-  const currency = config.currency
+  const { today, week, month, allTime, productPnl } = dashboard
+  const active = productPnl.filter(
+    (p) => p.product.status === 'testing' || p.product.status === 'scaling'
+  )
+  const best = productPnl[0]
+  const worst = [...productPnl].reverse().find((p) => p.summary.netProfitCents < 0)
+  const critical = recommendations.filter((r) => r.severity === 'critical')
 
   return (
     <div className="space-y-6">
-      {attention.length > 0 && (
-        <Note tone="warning">
-          <strong>{attention.length} order(s) need attention.</strong>{' '}
-          {attention[0].order_number}: {attention[0].attention_reason}{' '}
-          <Link href="/ops/orders" className="underline underline-offset-4">
-            Open orders
-          </Link>
+      <div>
+        <h1 className="commerce-display text-2xl text-ink-900">Overview</h1>
+        <p className="mt-1 text-sm text-ink-600">
+          Where the money actually is, and what needs a decision.
+        </p>
+      </div>
+
+      {!dashboard.hasAnyData && (
+        <Note>
+          <strong>Nothing has been entered yet.</strong> Every figure below is zero because the
+          ledger is empty, not because nothing sold. Start in{' '}
+          <Link href="/ops/books" className="underline">
+            Books
+          </Link>{' '}
+          — or in{' '}
+          <Link href="/ops/research" className="underline">
+            Research
+          </Link>{' '}
+          if you are still looking for the first product.
         </Note>
       )}
 
-      {/* Today ----------------------------------------------------------- */}
-      <div>
-        <h1 className="commerce-display text-2xl text-ink-900">Today</h1>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat label="Revenue" value={formatMoney(today.netRevenueCents, currency)} sub={`${today.orders} orders`} />
-          <Stat
-            label="Profit"
-            value={formatMoney(today.netProfitCents, currency)}
-            tone={today.netProfitCents >= 0 ? 'positive' : 'negative'}
-            sub={`margin ${formatPercent(today.netMargin)}`}
-          />
-          <Stat label="Ad spend" value={formatMoney(today.adSpendCents, currency)} sub={`ROAS ${formatRatio(today.roas)}`} />
-          <Stat label="AOV" value={today.aovCents === null ? '—' : formatMoney(today.aovCents, currency)} sub="today" />
-        </div>
-      </div>
-
-      {/* Windows --------------------------------------------------------- */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Week revenue" value={formatMoney(week.netRevenueCents, currency)} sub={`${week.orders} orders`} />
-        <Stat
-          label="Week profit"
-          value={formatMoney(week.netProfitCents, currency)}
-          tone={week.netProfitCents >= 0 ? 'positive' : 'negative'}
-          sub={`ROAS ${formatRatio(week.roas)} · CPA ${week.cpaCents === null ? '—' : formatMoney(week.cpaCents, currency)}`}
-        />
-        <Stat label="30-day revenue" value={formatMoney(month.netRevenueCents, currency)} sub={`${month.orders} orders`} />
-        <Stat
-          label="30-day profit"
-          value={formatMoney(month.netProfitCents, currency)}
-          tone={month.netProfitCents >= 0 ? 'positive' : 'negative'}
-          sub={`refunds ${formatPercent(month.refundRate)}`}
-        />
-      </div>
-
-      <Card title="Last 30 days">
-        <RevenueChart data={dailySeries} currency={currency} />
-      </Card>
-
-      {/* Best / worst ---------------------------------------------------- */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Best product">
-          {best ? (
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-[1.05rem] font-medium text-ink-900">{best.product.name}</p>
-                <StatusBadge status={best.product.status} />
-              </div>
-              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <dt className="text-ink-600">Net profit</dt>
-                <dd className="text-right tabular-nums text-moss-500">{formatMoney(best.netProfitCents, currency)}</dd>
-                <dt className="text-ink-600">Revenue</dt>
-                <dd className="text-right tabular-nums text-ink-900">{formatMoney(best.revenueCents, currency)}</dd>
-                <dt className="text-ink-600">ROAS</dt>
-                <dd className="text-right tabular-nums text-ink-900">{formatRatio(best.roas)}</dd>
-                <dt className="text-ink-600">Orders</dt>
-                <dd className="text-right tabular-nums text-ink-900">{best.orders}</dd>
-              </dl>
-            </div>
-          ) : (
-            <Empty title="No sales yet" body="Product performance appears here after the first order." />
-          )}
-        </Card>
-
-        <Card title="Worst product">
-          {worst && worst !== best ? (
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-[1.05rem] font-medium text-ink-900">{worst.product.name}</p>
-                <StatusBadge status={worst.product.status} />
-              </div>
-              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <dt className="text-ink-600">Net profit</dt>
-                <dd className={`text-right tabular-nums ${worst.netProfitCents < 0 ? 'text-clay-600' : 'text-ink-900'}`}>
-                  {formatMoney(worst.netProfitCents, currency)}
-                </dd>
-                <dt className="text-ink-600">Ad spend</dt>
-                <dd className="text-right tabular-nums text-ink-900">{formatMoney(worst.adSpendCents, currency)}</dd>
-                <dt className="text-ink-600">ROAS</dt>
-                <dd className="text-right tabular-nums text-ink-900">{formatRatio(worst.roas)}</dd>
-                <dt className="text-ink-600">Orders</dt>
-                <dd className="text-right tabular-nums text-ink-900">{worst.orders}</dd>
-              </dl>
-            </div>
-          ) : (
-            <Empty title="Not enough products" body="A second selling product is needed before a comparison means anything." />
-          )}
-        </Card>
-      </div>
-
-      {/* Analyst --------------------------------------------------------- */}
-      <Card
-        title="AI analyst"
-        action={<Badge tone={config.anthropicConfigured ? 'REAL' : 'MOCK'}>{config.anthropicConfigured ? 'model' : 'rules fallback'}</Badge>}
-      >
-        <AnalystPanel suggestions={SUGGESTED_QUESTIONS} />
-      </Card>
-
-      {/* Recommendations -------------------------------------------------- */}
-      <Card
-        title="Recommendations"
-        action={
-          <Link href="/ops/automations" className="text-xs text-ink-600 underline underline-offset-4">
-            Run automations
+      {critical.length > 0 && (
+        <Note tone="warning">
+          <strong>
+            {critical.length} thing{critical.length === 1 ? '' : 's'} need
+            {critical.length === 1 ? 's' : ''} your attention.
+          </strong>{' '}
+          {critical[0].title}
+          {critical.length > 1 ? ` (and ${critical.length - 1} more)` : ''} —{' '}
+          <Link href="/ops/automations" className="underline">
+            see all
           </Link>
-        }
-      >
-        {recommendations.length === 0 ? (
-          <Empty
-            title="No open recommendations"
-            body="Run the daily or weekly automation jobs to generate them from current data."
-            href="/ops/automations"
-            cta="Go to automations"
-          />
-        ) : (
-          <ul className="space-y-3">
-            {recommendations.slice(0, 8).map((r) => (
-              <li key={r.id} className="rounded-xl border border-ink-200 p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone={r.severity}>{r.kind}</Badge>
-                  <p className="text-[0.95rem] font-medium text-ink-900">{r.title}</p>
-                </div>
-                <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-ink-600">{r.body}</p>
-              </li>
-            ))}
-          </ul>
+          .
+        </Note>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat
+          label="Today"
+          value={formatMoney(today.netProfitCents)}
+          tone={today.netProfitCents >= 0 ? 'positive' : 'negative'}
+          sub={`${formatMoney(today.revenueCents)} revenue`}
+        />
+        <Stat
+          label="Last 7 days"
+          value={formatMoney(week.netProfitCents)}
+          tone={week.netProfitCents >= 0 ? 'positive' : 'negative'}
+          sub={`ROAS ${formatRatio(week.roas)}`}
+        />
+        <Stat
+          label="Last 30 days"
+          value={formatMoney(month.netProfitCents)}
+          tone={month.netProfitCents >= 0 ? 'positive' : 'negative'}
+          sub={`${formatMoney(month.adSpendCents)} on ads`}
+        />
+        <Stat
+          label="All time"
+          value={formatMoney(allTime.netProfitCents)}
+          tone={allTime.netProfitCents >= 0 ? 'positive' : 'negative'}
+          sub={`Net margin ${formatPercent(allTime.netMargin)}`}
+        />
+      </div>
+
+      <Card title="Revenue, ad spend and net profit — 30 days">
+        <RevenueChart data={dashboard.series} />
+        {dashboard.unattributedAdSpendCents > 0 && (
+          <p className="mt-4 text-xs leading-relaxed text-ink-500">
+            {formatMoney(dashboard.unattributedAdSpendCents)} of ad spend is not attached to any
+            product. It is included in these totals but not in any per-product figure below, which
+            is why the parts will not add up to the whole.
+          </p>
         )}
       </Card>
 
-      {/* All-time -------------------------------------------------------- */}
-      <Card title="All time">
-        <Table head={['Metric', 'Value']}>
-          {[
-            ['Gross revenue', formatMoney(allTime.grossRevenueCents, currency)],
-            ['Refunds', formatMoney(allTime.refundsCents, currency)],
-            ['Net revenue', formatMoney(allTime.netRevenueCents, currency)],
-            ['Cost of goods', formatMoney(allTime.cogsCents, currency)],
-            ['Gross profit', formatMoney(allTime.grossProfitCents, currency)],
-            ['Payment fees', formatMoney(allTime.paymentFeesCents, currency)],
-            ['Ad spend', formatMoney(allTime.adSpendCents, currency)],
-            ['Other expenses', formatMoney(allTime.otherExpensesCents, currency)],
-            ['Net profit', formatMoney(allTime.netProfitCents, currency)],
-            ['Net margin', formatPercent(allTime.netMargin)],
-            ['Orders', String(allTime.orders)],
-            ['Units', String(allTime.units)],
-            ['AOV', allTime.aovCents === null ? '—' : formatMoney(allTime.aovCents, currency)],
-            ['ROAS', formatRatio(allTime.roas)],
-            ['CPA', allTime.cpaCents === null ? '—' : formatMoney(allTime.cpaCents, currency)],
-            ['Conversion rate', formatPercent(allTime.conversionRate)],
-            ['Refund rate', formatPercent(allTime.refundRate)],
-          ].map(([k, val]) => (
-            <tr key={k}>
-              <td className="py-2 pr-4 text-ink-600">{k}</td>
-              <td className="py-2 pr-4 tabular-nums text-ink-900">{val}</td>
-            </tr>
-          ))}
-        </Table>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card title="Best and worst">
+          {productPnl.length === 0 ? (
+            <Empty title="No products yet" body="Add your first candidate in Research." href="/ops/research" cta="Go to Research" />
+          ) : (
+            <div className="space-y-4">
+              {best && (
+                <div className="rounded-xl border border-ink-200 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="positive">Best</Badge>
+                    <p className="font-medium text-ink-900">{best.product.name}</p>
+                    <StatusBadge status={best.product.status} />
+                  </div>
+                  <p className="mt-1.5 text-sm text-ink-600">
+                    {formatMoney(best.summary.netProfitCents)} net on{' '}
+                    {formatMoney(best.summary.revenueCents)} revenue, ROAS{' '}
+                    {formatRatio(best.summary.roas)}.
+                  </p>
+                </div>
+              )}
+              {worst ? (
+                <div className="rounded-xl border border-clay-500/40 bg-clay-400/5 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="warning">Losing money</Badge>
+                    <p className="font-medium text-ink-900">{worst.product.name}</p>
+                    <StatusBadge status={worst.product.status} />
+                  </div>
+                  <p className="mt-1.5 text-sm text-ink-600">
+                    {formatMoney(worst.summary.netProfitCents)} net after{' '}
+                    {formatMoney(worst.summary.adSpendCents)} of ad spend.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-ink-600">Nothing is currently net-negative.</p>
+              )}
+            </div>
+          )}
+        </Card>
+
+        <Card title="In progress">
+          {active.length === 0 ? (
+            <Empty
+              title="Nothing under test"
+              body="Products at testing or scaling appear here with their live numbers."
+              href="/ops/products"
+              cta="See the pipeline"
+            />
+          ) : (
+            <Table head={['Product', 'Stage', 'Net', 'ROAS']}>
+              {active.map(({ product, summary }) => {
+                const stage = stageForStatus(product.status)
+                return (
+                  <tr key={product.id}>
+                    <td className="py-2.5 pr-4">
+                      <Link href={`/ops/products/${product.id}`} className="text-ink-900 underline decoration-ink-300">
+                        {product.name}
+                      </Link>
+                    </td>
+                    <td className="py-2.5 pr-4 text-ink-600">
+                      {stage ? `${stage} · ${CHECKLISTS[stage].length} steps` : '—'}
+                    </td>
+                    <td
+                      className={`py-2.5 pr-4 tabular-nums ${
+                        summary.netProfitCents >= 0 ? 'text-moss-500' : 'text-clay-600'
+                      }`}
+                    >
+                      {formatMoney(summary.netProfitCents)}
+                    </td>
+                    <td className="py-2.5 pr-4 tabular-nums text-ink-700">
+                      {formatRatio(summary.roas)}
+                    </td>
+                  </tr>
+                )
+              })}
+            </Table>
+          )}
+        </Card>
+      </div>
+
+      <Card title="Ask the coach">
+        <AnalystPanel
+          suggestions={[
+            'Which product is actually making money after ad spend?',
+            'What do my losers have in common?',
+            'Is anything worth more budget right now?',
+            'What should I check before I test the next product?',
+          ]}
+        />
         <p className="mt-4 text-xs leading-relaxed text-ink-500">
-          Revenue is not profit. Net profit above is net revenue minus cost of goods, payment fees,
-          ad spend and other expenses. A dash means the metric could not be computed from the data
-          available — it is never shown as zero.
+          Answers are computed from your ledger and your own post-mortems ({postmortems.length}{' '}
+          written) before the question is asked. It is instructed to say what is missing rather than
+          estimate.
         </p>
       </Card>
+
+      {events.length > 0 && (
+        <Card title="Recent activity">
+          <ul className="space-y-2 text-sm">
+            {events.map((e) => (
+              <li key={e.id} className="flex flex-wrap gap-x-3 gap-y-1">
+                <span className="tabular-nums text-ink-500">
+                  {new Date(e.created_at).toLocaleString('en-GB', {
+                    day: '2-digit',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+                <span className={e.level === 'error' ? 'text-clay-600' : 'text-ink-700'}>
+                  {e.message}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
     </div>
   )
 }

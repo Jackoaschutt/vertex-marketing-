@@ -34,7 +34,7 @@ Development rule #1 is *"do not destroy working functionality"*. PropGuard is wo
 | Concern | Namespace |
 | --- | --- |
 | Storefront | `/store`, `/store/shop`, `/store/product/[slug]`, `/store/cart`, `/store/pages/*` |
-| Admin | `/ops` (Overview, Products, Research, Orders, Suppliers, Customers, Analytics, Marketing, Automations, Settings) |
+| Admin | `/ops` (Overview, Products, Research, Orders, Suppliers, Customers, Analytics, Marketing, Automations, Settings, System) |
 | HTTP API | `/api/commerce/*` |
 | Domain code | `lib/commerce/*` |
 | UI | `components/store/*`, `components/ops/*` |

@@ -84,6 +84,7 @@ Status per item: **DONE** (built and working in this repo) · **PARTIAL** (usabl
 | Per-product P&L | DONE | Contribution margin per product |
 | Ops overview dashboard | DONE | Today/week/month, best & worst product, charts |
 | Attribution | DONE | UTM + click-id capture → cookie → order |
+| System inventory page | DONE | `/ops/system` — every module, route and table with its REAL/MOCK/UNVERIFIED status, live readiness checks and test coverage. `tests/system.test.ts` asserts every path it names exists, so it cannot rot into a false claim |
 | Conversion-funnel drop-off | PARTIAL | Order-side funnel is real; page-view funnel needs an analytics provider (TODO) |
 
 ## PHASE 7 — Marketing Automation · PARTIAL

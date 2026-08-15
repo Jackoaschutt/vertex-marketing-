@@ -48,6 +48,9 @@ export const config = {
   get supplierWebhookConfigured(): boolean {
     return has('SUPPLIER_WEBHOOK_SECRET')
   },
+  get metaConfigured(): boolean {
+    return has('META_ACCESS_TOKEN') && has('META_AD_ACCOUNT_ID')
+  },
   get cronConfigured(): boolean {
     return has('CRON_SECRET')
   },
@@ -138,11 +141,13 @@ export function capabilities(): Capability[] {
     },
     {
       key: 'ads',
-      label: 'Ad platforms (Meta / TikTok / Google)',
-      status: 'TODO',
-      configured: false,
-      requires: ['META_ACCESS_TOKEN', 'META_AD_ACCOUNT_ID', 'TIKTOK_ACCESS_TOKEN', 'GOOGLE_ADS_*'],
-      note: 'Metric schema and storage are ready. Enter spend manually in /ops/marketing until a channel client is written.',
+      label: 'Ad platforms (Meta Marketing API)',
+      status: config.metaConfigured ? 'REAL' : 'TODO',
+      configured: config.metaConfigured,
+      requires: ['META_ACCESS_TOKEN', 'META_AD_ACCOUNT_ID'],
+      note: config.metaConfigured
+        ? 'Meta credentials present. The client is written to the documented Marketing API but has NOT been verified against a live ad account — run the status check in /ops/marketing before trusting the numbers. TikTok and Google Ads are not built; enter their spend manually.'
+        : 'The Meta client is written but no credentials are set. TikTok and Google Ads are not built at all. Manual spend entry in /ops/marketing produces real figures either way.',
     },
     {
       key: 'cron',

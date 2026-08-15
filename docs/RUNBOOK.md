@@ -77,6 +77,12 @@ Sign in through the existing `/login` page with a Supabase account whose email i
 on that list, then go to `/ops`. An empty allowlist denies everyone — that is
 deliberate, so a half-configured deployment never exposes the admin.
 
+**Start at `/ops/system`.** It lists every module, route and table that exists,
+what each one does, and whether it is real code, a labelled mock, or written but
+never run against a live account. It also re-checks the launch-readiness items in
+§13 against the running deployment on every request, so it will tell you exactly
+what is still missing rather than making you work through this document.
+
 ---
 
 ## 5. Connect Stripe
@@ -414,6 +420,7 @@ inventory without a sync job will oversell.
 - [ ] `NEXT_PUBLIC_APP_URL` set to the production origin
 - [ ] `/robots.txt` and `/store-sitemap.xml` return the production domain
 - [ ] `CRON_SECRET` set and the daily automation firing
+- [ ] `/ops/system` shows no remaining blocking readiness items
 
 ---
 
@@ -465,6 +472,7 @@ lib/commerce/
   marketing/channels.ts        ad channel interface + registry
   marketing/adapter-meta.ts    Meta Ads client (insights + campaign creation)
   marketing/import.ts          ad-metric import + campaign→product attribution
+  system.ts                    the inventory behind /ops/system
 
 components/store/…             storefront UI
 components/ops/…               admin UI

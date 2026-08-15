@@ -54,6 +54,7 @@ export const MODULES: ModuleEntry[] = [
   { name: 'Storage driver contract', file: 'lib/commerce/db/driver.ts', purpose: 'The interface both drivers implement. Repositories never import a driver directly.', maturity: 'REAL' },
   { name: 'Supabase driver', file: 'lib/commerce/db/driver-supabase.ts', purpose: 'Postgres via the service-role key. The only module that touches it.', maturity: 'REAL' },
   { name: 'Demo driver', file: 'lib/commerce/db/driver-memory.ts', purpose: 'Seeded in-process storage so the whole tool runs with zero credentials. Resets on restart.', maturity: 'MOCK', note: 'Active only when no database is configured.' },
+  { name: 'Database health', file: 'lib/commerce/db/health.ts', purpose: 'Turns a connection failure into a message naming the cause and the fix, instead of an opaque error digest.', maturity: 'REAL' },
   { name: 'Repositories', file: 'lib/commerce/db/repo.ts', purpose: 'The only API the rest of the system uses to reach storage.', maturity: 'REAL' },
 
   // Research

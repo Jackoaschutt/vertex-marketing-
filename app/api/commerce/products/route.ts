@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { requireAdmin } from '@/lib/commerce/auth'
 import { handleError, ok, readJson } from '@/lib/commerce/http'
 import { Validator, slugify } from '@/lib/commerce/validate'
-import { createProduct, createVariant, listProducts, logEvent } from '@/lib/commerce/db/repo'
+import { createProduct, listProducts, logEvent } from '@/lib/commerce/db/repo'
 import { computeComponents, totalScore, EMPTY_INPUT } from '@/lib/commerce/research/scoring'
 import type { ProductStatus } from '@/lib/commerce/types'
 
@@ -80,21 +80,7 @@ export async function POST(request: NextRequest) {
       product_score: totalScore(components),
       research_inputs: input as unknown as Record<string, unknown>,
       status,
-      // Deliberate: creating a product never publishes it, regardless of score.
-      published: false,
       date_discovered: new Date().toISOString(),
-    })
-
-    await createVariant({
-      product_id: product.id,
-      sku: `${slugify(name).toUpperCase().slice(0, 18)}-01`,
-      title: 'Default',
-      options: {},
-      price_cents: priceCents,
-      cost_cents: costCents,
-      stock: null,
-      is_default: true,
-      position: 0,
     })
 
     await logEvent({

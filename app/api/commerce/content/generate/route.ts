@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/commerce/auth'
 import { clientKey, fail, handleError, ok, rateLimit, readJson, tooManyRequests } from '@/lib/commerce/http'
 import { Validator } from '@/lib/commerce/validate'
 import { generateContent } from '@/lib/commerce/ai/content'
-import { getProductRow, logEvent, saveContent, updateProduct } from '@/lib/commerce/db/repo'
+import { getProductRow, logEvent, saveContent } from '@/lib/commerce/db/repo'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -54,12 +54,6 @@ export async function POST(request: NextRequest) {
         model: result.model,
         payload: result.content,
         approved: false,
-      })
-      // Meta tags are safe to apply directly — they are not customer-facing
-      // claims and are easy to review.
-      await updateProduct(productId, {
-        meta_title: result.content.metaTitle,
-        meta_description: result.content.metaDescription,
       })
       await logEvent({
         kind: 'content.generated',

@@ -48,11 +48,12 @@ export async function POST(request: NextRequest) {
     const product = await getProductRow(productId)
     if (!product) return fail(404, 'Product not found.')
 
-    // Do not let the system spend money driving traffic to a page that 404s.
-    if (!product.published || !isSellable(product.status)) {
+    // Do not let the system spend money on a candidate that has not been
+    // approved for testing yet.
+    if (!isSellable(product.status)) {
       return fail(
         409,
-        `"${product.name}" is not live (status ${product.status}, published ${product.published}). Publish it before advertising it — otherwise the ads would send paid traffic to a page that is not for sale.`
+        `"${product.name}" is at status "${product.status}", which is not a stage where money should be spent on it. Take it through validation to approved or testing first.`
       )
     }
 

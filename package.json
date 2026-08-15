@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "npm run test:build && node --test .test-build/tests/*.test.js",
+    "test:build": "rm -rf .test-build && tsc -p tsconfig.test.json",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",

@@ -33,6 +33,8 @@ import {
   updateSupplierLink,
 } from '../db/repo'
 import { syncOrderTracking } from '../orders/pipeline'
+import { isMetaConfigured, MetaApiError } from '../marketing/adapter-meta'
+import { importMetaMetrics } from '../marketing/import'
 import type { Recommendation } from '../types'
 
 export interface JobReport {
@@ -228,6 +230,65 @@ export async function jobAbandonedCarts(): Promise<JobReport> {
   return report
 }
 
+/**
+ * Pulls yesterday and today from Meta before the ROAS check runs, so
+ * recommendations are made against current spend rather than a stale snapshot.
+ *
+ * A 3-day window rather than 1: Meta's attribution keeps revising recent days
+ * for up to 72 hours, and the import is idempotent, so re-pulling corrects
+ * earlier figures instead of double-counting them.
+ */
+export async function jobImportAdSpend(): Promise<JobReport> {
+  const report: JobReport = { job: 'ad-import', checked: 0, findings: [], errors: [] }
+
+  if (!isMetaConfigured()) {
+    report.findings.push(
+      'Meta Ads is not configured — skipped. Ad spend entered manually in /ops/marketing is still counted.'
+    )
+    return report
+  }
+
+  const to = new Date().toISOString().slice(0, 10)
+  const from = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10)
+
+  try {
+    const summary = await importMetaMetrics(from, to)
+    report.checked = summary.rowsFetched
+    report.findings.push(
+      `Imported ${summary.rowsWritten} Meta row(s) for ${from}..${to}: ${formatMoney(summary.spendCents)} spend, ${summary.purchases} purchase(s).`
+    )
+    if (summary.unattributed > 0) {
+      report.findings.push(
+        `${summary.unattributed} row(s) could not be attributed to a product.`
+      )
+      await recommend({
+        kind: 'investigate',
+        severity: 'warning',
+        title: `${summary.unattributedCampaigns.length} Meta campaign(s) are not attributed to a product`,
+        body: `Spend on these campaigns counts toward total ad spend but not toward any product P&L, so per-product ROAS is understated. Add a [vsp:<product-slug>] marker to the campaign name in Ads Manager, or map it in /ops/marketing.\n\n${summary.unattributedCampaigns
+          .slice(0, 5)
+          .map((c) => `${c.campaignRef}: ${formatMoney(c.spendCents)}`)
+          .join('\n')}`,
+        evidence: { campaigns: summary.unattributedCampaigns },
+      })
+    }
+  } catch (err) {
+    // An import failure must not be silent: without it, ROAS below is computed
+    // against stale spend and the recommendations that follow are wrong.
+    const message = err instanceof MetaApiError ? `${err.message}${err.hint ? ` — ${err.hint}` : ''}` : String(err)
+    report.errors.push(message)
+    await recommend({
+      kind: 'investigate',
+      severity: 'critical',
+      title: 'Meta ad spend import failed',
+      body: `Today's advertising figures may be stale, which makes every ROAS-based recommendation below unreliable until it is fixed.\n\n${message}`,
+      evidence: { from, to },
+    })
+  }
+
+  return report
+}
+
 /** Daily advertising check against the target ROAS. */
 export async function jobAdPerformance(): Promise<JobReport> {
   const report: JobReport = { job: 'ad-performance', checked: 0, findings: [], errors: [] }
@@ -388,7 +449,16 @@ export async function runAutomations(which: 'daily' | 'weekly' | 'all' = 'daily'
   await clearOpenRecommendations()
 
   const reports: JobReport[] = []
-  const daily = [jobInventory, jobPriceDrift, jobOrderHealth, jobAbandonedCarts, jobAdPerformance]
+  // Order matters: the import runs before the ROAS check so recommendations
+  // are made against fresh spend.
+  const daily = [
+    jobInventory,
+    jobPriceDrift,
+    jobOrderHealth,
+    jobAbandonedCarts,
+    jobImportAdSpend,
+    jobAdPerformance,
+  ]
   const weekly = [jobWeeklyReview]
 
   const toRun = which === 'daily' ? daily : which === 'weekly' ? weekly : [...daily, ...weekly]

@@ -18,7 +18,8 @@ the first product, launch.
 | Mock supplier | `lib/commerce/suppliers/adapter-mock.ts` | MOCK |
 | CJ supplier | `lib/commerce/suppliers/adapter-cj.ts` | REAL, **unverified** |
 | Generic HTTP supplier | `lib/commerce/suppliers/adapter-http.ts` | REAL |
-| Ad channel clients | `lib/commerce/marketing/channels.ts` | TODO (manual entry is REAL) |
+| Meta Ads client | `lib/commerce/marketing/adapter-meta.ts` | REAL, **unverified** |
+| Other ad channels | `lib/commerce/marketing/channels.ts` | TODO (manual entry is REAL) |
 
 The existing **PropGuard** app is untouched. It still owns `/`, `/dashboard`,
 `/session`, `/journal`, `/analytics`, `/accounts`, `/settings`, `/squad`,
@@ -39,7 +40,7 @@ Supabase Auth to have a session to check.
 
 ```bash
 npm run typecheck    # tsc --noEmit
-npm test             # compiles lib + tests to CJS, runs node --test (55 tests)
+npm test             # compiles lib + tests to CJS, runs node --test (77 tests)
 npm run build        # production build
 ```
 
@@ -195,6 +196,98 @@ This is the single most commonly missed step before launch.
 
 ---
 
+## 7b. Connect Meta Ads
+
+The Meta client imports daily performance into `ds_ad_metrics` and can create
+campaigns. Without it, ad spend is entered by hand in `/ops/marketing` — those
+figures are just as real, they simply are not automatic.
+
+### Credentials
+
+1. In **Meta Business Settings**, create a **System User** and generate a
+   long-lived token with `ads_read` (import) and `ads_management` (create
+   campaigns). Assign the ad account and the Page to that system user.
+2. Set:
+   ```
+   META_ACCESS_TOKEN=...
+   META_AD_ACCOUNT_ID=act_1234567890     # the act_ prefix is required
+   META_PAGE_ID=...                      # only needed to create campaigns
+   META_API_VERSION=v23.0                # check the Graph API changelog
+   ```
+
+### Verify before you do anything else
+
+```
+GET /api/commerce/marketing/meta/status
+```
+
+One real round trip that proves the token, ad account id, API version and
+permissions all work. It returns the account name, currency, timezone and spend
+status. **Check the currency** — if the ad account bills in a different currency
+from `COMMERCE_CURRENCY`, imported spend is not converted and ROAS will be
+wrong. The panel in `/ops/marketing` says so in red.
+
+If it fails, the response carries Meta's own error message plus a hint. The
+common ones:
+
+| Meta says | Means |
+| --- | --- |
+| "Unsupported get request… does not exist" | Wrong `META_AD_ACCOUNT_ID` (missing `act_` prefix), or `META_API_VERSION` has expired |
+| code 190 | Token invalid or expired — generate a new System User token |
+| code 200 / HTTP 403 | Token is missing `ads_read` or `ads_management` |
+| code 17 / HTTP 429 | Rate limited — import a shorter window |
+
+### Import performance
+
+From `/ops/marketing` → **Meta Ads** → *Last 7 / 30 / 90 days*, or:
+
+```
+POST /api/commerce/marketing/meta/import
+Authorization: Bearer $CRON_SECRET
+{ "from": "2026-08-01", "to": "2026-08-15" }
+```
+
+Idempotent — rows are upserted on (product, channel, campaign, day), so
+re-importing a window corrects it rather than double-counting. The daily
+automation imports a rolling 3-day window automatically (Meta keeps revising
+recent days for up to 72 hours) and runs *before* the ROAS check so
+recommendations use fresh spend.
+
+⚠️ **Do not enter spend manually for a day you also import.** Manual and API
+rows are stored under different campaign references and will be summed.
+
+### Attribute campaigns to products
+
+Meta does not know our product ids. Two ways, in precedence order:
+
+1. **Launch the campaign from `/ops/marketing`** — the mapping is recorded
+   automatically.
+2. **Put `[vsp:<product-slug>]` in the campaign name** in Ads Manager, e.g.
+   `Halo Bedside Light — Aug 2026 [vsp:halo-bedside-light]`.
+3. Or map an existing campaign from the campaign table in `/ops/marketing`
+   (applies to future imports — re-import the period you want re-attributed).
+
+Unattributed spend still counts toward total ad spend and account-level net
+profit; it just cannot be charged to one product's P&L. Every import reports
+what it could not attribute, and the daily job raises a recommendation.
+
+### Launch a campaign
+
+`/ops/marketing` → **Launch a campaign**. Creates campaign → ad set → creative →
+ad, **all PAUSED**. This system never activates a campaign — review the creative
+in Ads Manager and turn it on there.
+
+Guards, none of which `server.py` had:
+- Refuses to advertise a product that is not published and sellable.
+- Resolves interest names to real Meta targeting IDs; unresolvable names are
+  dropped and reported rather than sent as names Meta ignores.
+- Fails loudly if any of the four objects cannot be created — it never reports
+  a half-built campaign as success.
+- The destination URL carries UTM parameters, so orders attribute back through
+  the storefront's own attribution cookie as well.
+
+---
+
 ## 8. Schedule the automations
 
 ```
@@ -334,7 +427,10 @@ inventory without a sync job will oversell.
 | Paid orders never appear | Commerce webhook not registered, or wrong secret | Check `STRIPE_COMMERCE_WEBHOOK_SECRET` and the Stripe dashboard's delivery log |
 | Orders stuck in `needs_attention` | Supplier rejected them | `/ops/orders` shows the exact reason; fix and press Retry (idempotent) |
 | Customers get no email | Console transport is active | Set `RESEND_API_KEY` and `COMMERCE_FROM_EMAIL` |
-| ROAS and CPA show `—` | No ad spend recorded | Enter spend in `/ops/marketing`. A dash means "not computable", never zero |
+| ROAS and CPA show `—` | No ad spend recorded | Enter spend in `/ops/marketing`, or import from Meta. A dash means "not computable", never zero |
+| Meta import returns 502 | Meta rejected the request | The response carries Meta's message and a hint. Start with the status endpoint |
+| Meta spend appears but not against a product | Campaign is unattributed | Add `[vsp:<slug>]` to the campaign name or map it in `/ops/marketing`, then re-import |
+| ROAS looks impossibly good after an import | Manual spend for the same day was also entered | Manual and API rows are summed — remove one |
 | AI copy is badged `FALLBACK` | `ANTHROPIC_API_KEY` not set | Set it, then regenerate |
 | Product will not publish | Status is not sellable | Move it to `approved`, `testing`, `winner` or `scaling` first |
 
@@ -366,7 +462,9 @@ lib/commerce/
   ai/                          Anthropic client, content pipeline, analyst, guardrails
   automation/jobs.ts           daily + weekly jobs
   email/                       transports + 9 templates
-  marketing/channels.ts        ad channel interface
+  marketing/channels.ts        ad channel interface + registry
+  marketing/adapter-meta.ts    Meta Ads client (insights + campaign creation)
+  marketing/import.ts          ad-metric import + campaign→product attribution
 
 components/store/…             storefront UI
 components/ops/…               admin UI

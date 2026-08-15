@@ -3,8 +3,11 @@ import { formatMoney, formatRatio, safeDivide } from '@/lib/commerce/money'
 import { daysAgoIso } from '@/lib/commerce/analytics/profit'
 import { listAbandonedCarts, listAdMetrics, listEmailLog, listProducts } from '@/lib/commerce/db/repo'
 import { CHANNELS } from '@/lib/commerce/marketing/channels'
+import { isSellable } from '@/lib/commerce/research/scoring'
+import { isMetaConfigured } from '@/lib/commerce/marketing/adapter-meta'
 import { Badge, Card, Empty, Note, Table } from '@/components/ops/ui'
 import { SpendForm } from '@/components/ops/SpendForm'
+import { MetaPanel } from '@/components/ops/MetaPanel'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +42,20 @@ export default async function OpsMarketing() {
         </p>
       </div>
 
-      <Card title="Record ad spend">
+      <Card
+        title="Meta Ads"
+        action={<Badge tone={isMetaConfigured() ? 'REAL' : 'TODO'}>{isMetaConfigured() ? 'connected' : 'not configured'}</Badge>}
+      >
+        <MetaPanel
+          products={products.map((p) => ({ id: p.id, name: p.name }))}
+          sellableProducts={products
+            .filter((p) => p.published && isSellable(p.status))
+            .map((p) => ({ id: p.id, name: p.name, slug: p.slug }))}
+          currency={currency}
+        />
+      </Card>
+
+      <Card title="Record ad spend manually">
         <SpendForm products={products.map((p) => ({ id: p.id, name: p.name }))} />
       </Card>
 
@@ -73,6 +89,14 @@ export default async function OpsMarketing() {
       </Card>
 
       <Card title="Channel integrations">
+        <div className="mb-4">
+          <Note>
+            Manual entry and API import both write to the same table. If you enter spend by hand for
+            a day and then import that day from Meta, the two are stored under different campaign
+            references and will be <strong>summed</strong> — delete the manual row or skip the
+            import for overlapping days.
+          </Note>
+        </div>
         <div className="space-y-3">
           {CHANNELS.map((c) => (
             <div key={c.id} className="rounded-xl border border-ink-200 p-4">

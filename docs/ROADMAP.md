@@ -93,7 +93,10 @@ Status per item: **DONE** (built and working in this repo) · **PARTIAL** (usabl
 | Ad metric schema + storage | DONE | `ds_ad_metrics`, daily per product per channel |
 | Manual ad-spend entry | DONE | `/ops/marketing` |
 | `AdChannelClient` interface + mock | DONE (**MOCK**) | |
-| Meta / TikTok / Google clients | TODO | **BLOCKED** on tokens and ad-account IDs. `server.py` has a working Meta campaign-creation path to port |
+| **Meta Ads client** | DONE (**REAL, unverified against a live account**) | `lib/commerce/marketing/adapter-meta.ts`. Daily insights import, campaign creation (always PAUSED), interest resolution, account verification. Ported from `server.py` stage 4 with its gaps closed |
+| Meta → product attribution | DONE | Explicit campaign map plus a `[vsp:<slug>]` campaign-name marker; unattributed spend is reported, never silently dropped |
+| Meta import in the daily job | DONE | Runs before the ROAS check so recommendations use fresh spend; a failed import raises a critical recommendation rather than passing silently |
+| TikTok / Google clients | TODO | **BLOCKED** on tokens and ad-account IDs. Implement `AdChannelClient`; nothing else changes |
 | Email transport interface | DONE | Console (MOCK) + Resend (REAL) |
 | 9 lifecycle email templates | DONE | Rendered HTML + text, dedupe-guarded |
 | Abandoned-cart capture | DONE | Checkout starts recorded; recovery email fires from the daily job |

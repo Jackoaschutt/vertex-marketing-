@@ -1,20 +1,17 @@
 /**
  * Ad channel abstraction.
  *
- * The metric schema (ds_ad_metrics), the storage and the profit engine are all
- * live. What is missing is a client per platform, because that requires an ad
- * account and an access token this repository does not have.
- *
  * Status:
- *   manual  REAL — the operator enters spend in /ops/marketing. This is the
- *           default and it produces genuine ROAS/CPA figures.
+ *   manual  REAL — the operator enters spend in /ops/marketing. Produces
+ *           genuine ROAS/CPA figures and is always available.
+ *   meta    REAL — Meta Marketing API client in ./adapter-meta.ts. Reads daily
+ *           insights and can launch campaigns (always PAUSED). Ported from the
+ *           Meta stage of server.py with its gaps closed.
  *   mock    MOCK — deterministic numbers for development only.
- *   meta / tiktok / google  TODO — interface below is what each must implement.
- *
- * NOTE: server.py in this repository already contains a working Meta Marketing
- * API campaign-creation path. Porting its auth and reporting calls is the
- * shortest route to a real Meta client. See docs/RUNBOOK.md.
+ *   tiktok / google  TODO — implement AdChannelClient; nothing else changes.
  */
+
+import { MetaAdsClient } from './adapter-meta'
 
 export interface ChannelDailyMetric {
   day: string // YYYY-MM-DD
@@ -83,9 +80,9 @@ export const CHANNELS: { id: string; label: string; status: 'REAL' | 'MOCK' | 'T
   {
     id: 'meta',
     label: 'Meta Ads',
-    status: 'TODO',
-    requires: ['META_ACCESS_TOKEN', 'META_AD_ACCOUNT_ID'],
-    note: 'Insights API client not written. server.py has a working campaign-creation path to port.',
+    status: 'REAL',
+    requires: ['META_ACCESS_TOKEN', 'META_AD_ACCOUNT_ID', 'META_PAGE_ID (to launch campaigns)'],
+    note: 'Daily insights import and campaign creation. Verify with the status check before importing — it proves the token, account id, API version and permissions in one round trip.',
   },
   {
     id: 'tiktok',
@@ -105,6 +102,7 @@ export const CHANNELS: { id: string; label: string; status: 'REAL' | 'MOCK' | 'T
 
 export function channelFor(id: string): AdChannelClient {
   if (id === 'mock') return new MockChannel()
+  if (id === 'meta') return new MetaAdsClient()
   const entry = CHANNELS.find((c) => c.id === id)
   return new NotImplementedChannel(id, entry?.requires ?? [])
 }

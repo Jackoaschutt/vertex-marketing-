@@ -119,6 +119,12 @@ Next.js Route Handlers under `app/api/commerce/`:
 | `/api/commerce/analytics/summary` | GET | admin | REAL |
 | `/api/commerce/analyst` | POST | admin | REAL w/ Anthropic key |
 | `/api/commerce/automations/run` | POST | admin **or** `CRON_SECRET` | REAL |
+| `/api/commerce/marketing/spend` | POST | admin | REAL |
+| `/api/commerce/marketing/meta/status` | GET | admin | REAL (round-trips the Graph API) |
+| `/api/commerce/marketing/meta/import` | POST | admin **or** `CRON_SECRET` | REAL |
+| `/api/commerce/marketing/meta/campaign` | POST | admin | REAL |
+| `/api/commerce/marketing/meta/map` | POST | admin | REAL |
+| `/api/commerce/contact` | POST | public, rate-limited | REAL |
 
 `/api/commerce/webhooks/stripe` is deliberately **separate** from PropGuard's `/api/webhooks/stripe` and uses its own `STRIPE_COMMERCE_WEBHOOK_SECRET`, so commerce events cannot disturb subscription billing.
 
@@ -254,7 +260,35 @@ Triggered by `POST /api/commerce/automations/run` with either an admin session o
 
 `ds_orders.attribution` captures `{source, medium, campaign, content, term, click_id}` from UTM params + `fbclid`/`ttclid`/`gclid`, persisted to a first-party cookie on landing and attached at checkout. `lib/commerce/analytics/attribution.ts` rolls orders up by source.
 
-Channel API clients (`lib/commerce/marketing/channels.ts`) define a `AdChannelClient` interface with a MOCK implementation. Meta/TikTok/Google clients are `TODO` — the interface, the metric schema, and the storage are ready, so activating a channel is writing one adapter.
+### Ad channels
+
+`lib/commerce/marketing/channels.ts` defines `AdChannelClient`. Implementations:
+
+| Channel | Status | Notes |
+| --- | --- | --- |
+| `manual` | REAL | Operator enters spend in `/ops/marketing`. Produces genuine ROAS/CPA |
+| `meta` | **REAL** | `adapter-meta.ts` — daily insights import and campaign creation |
+| `mock` | MOCK | Deterministic numbers for development |
+| `tiktok`, `google` | TODO | Implement the interface; nothing else changes |
+
+**Meta client** (`lib/commerce/marketing/adapter-meta.ts`). Ported from the Meta stage of `server.py`, with each of that implementation's gaps closed:
+
+| `server.py` | Here |
+| --- | --- |
+| `page_id: "YOUR_PAGE_ID"` placeholder | `META_PAGE_ID`, required and checked |
+| Interests sent by **name** (Meta ignores them → campaign silently runs fully broad) | Resolved to real targeting IDs via `/search?type=adinterest`; unresolvable names are reported, not sent |
+| `.json().get("id")` — a failed create returns `None` and looks like success | Every response checked; Meta's own error message surfaced with an actionable hint |
+| API version hard-coded `v19.0` | `META_API_VERSION`, and an expired-version error is detected and explained |
+| Creates campaigns only | Also **reads** performance, which is what the profit engine needs |
+| No attribution back to a product | Campaign→product mapping, so spend lands on the right P&L row |
+
+**Attribution.** Meta has no idea what our product ids are. Two mechanisms, in precedence order: an explicit `campaignId → productId` map in `ds_settings.meta_campaign_map` (written automatically when a campaign is launched from `/ops`), then a `[vsp:<product-slug>]` marker in the campaign name so a hand-made campaign can still be attributed. Anything matching neither is imported with `product_id = null` — it still counts toward total ad spend and account-level net profit, but cannot be charged to one product. Unattributed campaigns are reported back on every import and raise a recommendation, so the money is never quietly unaccounted for.
+
+**Double-counting defence.** Meta reports the same conversion under `omni_purchase`, `purchase` and `offsite_conversion.fb_pixel_purchase`. Summing them triples reported purchases and makes ROAS look excellent. `extractAction` reads the *first* type present in preference order and never sums — this is unit-tested, because it is the single most dangerous transform in the integration.
+
+**Money.** Meta returns `spend` and `action_values` as decimal strings in the ad account's currency, converted to integer cents on the way in. Currency is **not** converted — `verifyAccess()` reports the account currency and the UI flags a mismatch with `COMMERCE_CURRENCY` rather than silently corrupting ROAS.
+
+**Safety.** Campaigns are created `PAUSED` at every level (campaign, ad set, ad) and the system never activates them. A product that is not published and sellable cannot be advertised, so paid traffic is never sent to a page that is not for sale.
 
 ---
 

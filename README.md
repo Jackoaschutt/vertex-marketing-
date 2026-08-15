@@ -32,7 +32,7 @@ denies access until `COMMERCE_ADMIN_EMAILS` is set.
 
 ```bash
 npm run typecheck  # tsc --noEmit
-npm test           # node --test, 55 tests, no extra dependencies
+npm test           # node --test, 77 tests, no extra dependencies
 npm run build      # production build
 ```
 

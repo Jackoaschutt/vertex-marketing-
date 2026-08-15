@@ -34,22 +34,21 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
       <div className="commerce-scope flex min-h-screen items-center justify-center p-6">
         <div className="w-full max-w-lg rounded-2xl border border-ink-200 bg-white p-8">
           <p className="commerce-eyebrow text-ink-500">{brand.name} Ops</p>
-          <h1 className="commerce-display mt-3 text-3xl text-ink-900">Not authorised</h1>
+          <h1 className="commerce-display mt-3 text-3xl text-ink-900">Locked</h1>
           <p className="mt-4 text-[0.95rem] leading-relaxed text-ink-700">
             {adminDeniedMessage(admin.reason)}
           </p>
-          {admin.reason === 'unauthenticated' && (
+          {admin.reason === 'locked' && (
             <Link
-              href="/login"
+              href="/unlock"
               className="mt-6 inline-flex min-h-11 items-center rounded-full bg-ink-900 px-6 text-sm font-medium text-sand-100"
             >
-              Sign in
+              Unlock
             </Link>
           )}
           <p className="mt-6 text-xs leading-relaxed text-ink-500">
-            The allowlist is checked on every request. An empty{' '}
-            <code className="rounded bg-ink-100 px-1">COMMERCE_ADMIN_EMAILS</code> denies everyone by
-            design, so a misconfigured deployment never exposes the admin.
+            An unset <code className="rounded bg-ink-100 px-1">ADMIN_PASSCODE</code> denies
+            everyone by design, so a misconfigured deployment never exposes your books.
           </p>
         </div>
       </div>
@@ -63,7 +62,7 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
           <Link href="/ops" className="commerce-eyebrow text-ink-900">
             {brand.name} Ops
           </Link>
-          <span className="text-xs text-ink-500">{admin.identity.email}</span>
+          
           <div className="ml-auto flex items-center gap-2">
             {config.demoMode && <Badge tone="DEMO">Demo data</Badge>}
 

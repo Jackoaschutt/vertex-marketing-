@@ -1,29 +1,22 @@
-# Runbook — Vesper Commerce
+# Runbook
 
-Everything an operator needs: run it, deploy it, connect the integrations, add
-the first product, launch.
+How to run it, deploy it, and actually use it day to day.
 
 ---
 
-## 1. What is in the box
+## 1. Get in
 
-| Layer | Where | Status |
-| --- | --- | --- |
-| Storefront | `/store` | REAL |
-| Admin | `/ops` | REAL |
-| HTTP API | `/api/commerce/*` | REAL |
-| Domain logic | `lib/commerce/*` | REAL |
-| Database schema | `supabase/migrations/011_commerce_core.sql` | REAL |
-| Demo data driver | `lib/commerce/db/driver-memory.ts` | DEMO — active only when no database is configured |
-| Mock supplier | `lib/commerce/suppliers/adapter-mock.ts` | MOCK |
-| CJ supplier | `lib/commerce/suppliers/adapter-cj.ts` | REAL, **unverified** |
-| Generic HTTP supplier | `lib/commerce/suppliers/adapter-http.ts` | REAL |
-| Meta Ads client | `lib/commerce/marketing/adapter-meta.ts` | REAL, **unverified** |
-| Other ad channels | `lib/commerce/marketing/channels.ts` | TODO (manual entry is REAL) |
+One secret:
 
-The storefront is served at `/`. The only non-commerce routes left in the app
-are `/login` and `/signup`, which exist so an admin can obtain the Supabase
-session that `/ops` authorises against.
+```
+ADMIN_PASSCODE=something-long-you-will-remember
+```
+
+Set it, reload, go to `/unlock`, type it once. The session lasts 30 days per
+device. Changing the passcode logs every device out — that is the revoke button.
+
+Until it is set, the tool denies everyone including you. That is deliberate: a
+half-configured deployment must never leave your financials open.
 
 ---
 
@@ -31,17 +24,17 @@ session that `/ops` authorises against.
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000  and  /ops
+npm run dev          # http://localhost:3000
 ```
 
-With no `.env.local` at all the storefront runs on seeded demo data. `/ops`
-denies access until you set `COMMERCE_ADMIN_EMAILS`, and even then needs
-Supabase Auth to have a session to check.
+With no `.env.local` at all it runs on seeded in-memory data, so you can click
+through everything before connecting anything. `/ops` shows a permanent
+`DEMO DATA` banner whenever that is the case.
 
 ```bash
-npm run typecheck    # tsc --noEmit
-npm test             # compiles lib + tests to CJS, runs node --test (95 tests)
-npm run build        # production build
+npm run typecheck
+npm test             # 84 tests
+npm run build
 ```
 
 ---
@@ -49,429 +42,164 @@ npm run build        # production build
 ## 3. Connect the database
 
 1. Create a Supabase project.
-2. Run `supabase/migrations/011_commerce_core.sql`. It is the only migration in
-   the repository and creates all 17 `ds_` tables.
-3. Set in `.env.local`:
+2. Run both migrations in order: `011_commerce_core.sql`, then
+   `012_research_and_books.sql`.
+3. Set:
    ```
    NEXT_PUBLIC_SUPABASE_URL=...
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=...
    SUPABASE_SERVICE_ROLE_KEY=...
    ```
-4. Restart. The `DEMO DATA` banner in `/ops` disappears. **If the banner is still
-   there, the database is not connected** — nothing you do in the admin is being
-   saved.
+4. Reload. **If the `DEMO DATA` banner is still there, it is not connected** and
+   nothing you type is being saved.
 
-Every `ds_` table has RLS enabled with no policies, so the anon key can read
-nothing. All access is server-side through the service-role key.
-
----
-
-## 4. Open the admin
-
-```
-COMMERCE_ADMIN_EMAILS=you@yourdomain.com,cofounder@yourdomain.com
-```
-
-Sign in through the existing `/login` page with a Supabase account whose email is
-on that list, then go to `/ops`. An empty allowlist denies everyone — that is
-deliberate, so a half-configured deployment never exposes the admin.
-
-**Start at `/ops/system`.** It lists every module, route and table that exists,
-what each one does, and whether it is real code, a labelled mock, or written but
-never run against a live account. It also re-checks the launch-readiness items in
-§13 against the running deployment on every request, so it will tell you exactly
-what is still missing rather than making you work through this document.
+Every `ds_` table has RLS on with no policies, so the anon key can read nothing.
+All access is server-side through the service-role key.
 
 ---
 
-## 5. Connect Stripe
+## 4. The daily habit
 
-1. `STRIPE_SECRET_KEY` — any Stripe account.
-2. Add a webhook endpoint in the Stripe dashboard:
-   - URL: `https://<your-domain>/api/commerce/webhooks/stripe`
-   - Events: `checkout.session.completed`, `charge.refunded`
-3. Put that endpoint's signing secret in `STRIPE_COMMERCE_WEBHOOK_SECRET`.
+This is the part that decides whether the tool is worth anything.
 
-Keep it separate from `STRIPE_WEBHOOK_SECRET`. The commerce handler ignores any
-event without `metadata.commerce === 'vesper'`, so the two cannot interfere.
+**Once a day, enter yesterday.** `/ops/books` → Record a day. Units, revenue,
+cost of goods, inbound shipping, fees, refunds. It defaults to yesterday because
+a day is not finished until it is over.
 
-**Local testing:**
-```bash
-stripe listen --forward-to localhost:3000/api/commerce/webhooks/stripe
-stripe trigger checkout.session.completed
-```
+**Enter zero days too.** "No sales on Tuesday" is a fact. Recording it stops the
+gap warning and keeps your averages honest.
 
-Without `STRIPE_SECRET_KEY`, `POST /api/commerce/checkout` returns a 503 naming
-exactly what is missing. It never pretends a payment succeeded.
+**Re-entering a day corrects it.** The ledger upserts on day + product + channel,
+so fixing a mistake is just entering it again. You cannot double-count by
+accident.
 
----
-
-## 6. Connect a supplier
-
-Suppliers are rows in `ds_suppliers`. The `adapter` column selects the code path.
-
-### Option A — generic HTTP adapter (recommended for most suppliers)
-
-```sql
-insert into ds_suppliers (name, slug, adapter, config) values (
-  'Example Supplier', 'example', 'http',
-  '{
-     "baseUrl": "https://api.example-supplier.com/v1",
-     "tokenEnv": "EXAMPLE_SUPPLIER_TOKEN",
-     "authHeader": "Authorization",
-     "authScheme": "Bearer",
-     "costUnit": "major",
-     "paths": {
-       "products":  "/products",
-       "product":   "/products/{sku}",
-       "inventory": "/inventory/{sku}",
-       "price":     "/products/{sku}/price",
-       "orders":    "/orders",
-       "order":     "/orders/{ref}",
-       "tracking":  "/orders/{ref}/tracking"
-     },
-     "fields": {
-       "sku": "sku", "title": "name", "cost": "price",
-       "shipping": "shipping_fee", "stock": "quantity",
-       "orderRef": "order_id", "orderStatus": "status",
-       "trackingNumber": "tracking_number", "carrier": "carrier"
-     }
-   }'::jsonb
-);
-```
-
-Then set `EXAMPLE_SUPPLIER_TOKEN` in the environment. Check the field mapping
-against the supplier's own documentation before routing an order.
-
-### Option B — CJdropshipping
-
-```sql
-update ds_suppliers set adapter = 'cj' where slug = 'your-supplier';
-```
-plus `CJ_EMAIL` and `CJ_API_KEY`.
-
-⚠️ The CJ adapter is written to CJ's published Developer API v2 shapes but has
-**not** been executed against a live account. Place one low-value test order end
-to end and confirm the order id, status and tracking fields come back as the
-adapter expects before sending customer orders through it.
-
-### Map variants to supplier SKUs
-
-```sql
-insert into ds_supplier_products
-  (supplier_id, variant_id, supplier_sku, supplier_cost_cents, supplier_ship_cents)
-values ('<supplier-uuid>', '<variant-uuid>', 'SUPPLIER-SKU-123', 1180, 300);
-```
-
-Unmapped variants are sent using our own SKU, which the supplier will reject —
-the order lands in `needs_attention` with the reason attached rather than
-failing silently, but mapping first is better.
-
-### Supplier webhooks (optional)
-
-Set `SUPPLIER_WEBHOOK_SECRET` (`openssl rand -hex 32`) and point the supplier at
-`POST /api/commerce/webhooks/supplier`, signing the raw body with HMAC-SHA256
-and sending the hex digest in `x-supplier-signature`:
-
-```json
-{ "reference": "<supplier order ref>", "status": "shipped",
-  "trackingNumber": "...", "carrier": "...", "trackingUrl": "..." }
-```
-
-Without the secret the endpoint rejects everything. It never accepts unsigned
-input.
+**If you skip a few days**, the Books page and the nightly job will both tell
+you: any day with ad spend and no sales row is flagged. That warning is the
+single most useful thing in here — a hand-kept ledger fails silently, and this
+is what breaks the silence.
 
 ---
 
-## 7. Turn on AI and email
+## 5. Running a product through
 
-```
-ANTHROPIC_API_KEY=...        # product copy + business analyst
-RESEND_API_KEY=...           # transactional email
-COMMERCE_FROM_EMAIL=orders@yourdomain.com
-```
-
-Without the Anthropic key, copy generation and the analyst fall back to
-deterministic generators and are badged `FALLBACK` / `rules engine` in the UI.
-
-Without the Resend key the console transport is used: **emails are rendered and
-logged but never delivered.** Customers will not receive order confirmations.
-This is the single most commonly missed step before launch.
-
----
-
-## 7b. Connect Meta Ads
-
-The Meta client imports daily performance into `ds_ad_metrics` and can create
-campaigns. Without it, ad spend is entered by hand in `/ops/marketing` — those
-figures are just as real, they simply are not automatic.
-
-### Credentials
-
-1. In **Meta Business Settings**, create a **System User** and generate a
-   long-lived token with `ads_read` (import) and `ads_management` (create
-   campaigns). Assign the ad account and the Page to that system user.
-2. Set:
-   ```
-   META_ACCESS_TOKEN=...
-   META_AD_ACCOUNT_ID=act_1234567890     # the act_ prefix is required
-   META_PAGE_ID=...                      # only needed to create campaigns
-   META_API_VERSION=v23.0                # check the Graph API changelog
-   ```
-
-### Verify before you do anything else
-
-```
-GET /api/commerce/marketing/meta/status
-```
-
-One real round trip that proves the token, ad account id, API version and
-permissions all work. It returns the account name, currency, timezone and spend
-status. **Check the currency** — if the ad account bills in a different currency
-from `COMMERCE_CURRENCY`, imported spend is not converted and ROAS will be
-wrong. The panel in `/ops/marketing` says so in red.
-
-If it fails, the response carries Meta's own error message plus a hint. The
-common ones:
-
-| Meta says | Means |
-| --- | --- |
-| "Unsupported get request… does not exist" | Wrong `META_AD_ACCOUNT_ID` (missing `act_` prefix), or `META_API_VERSION` has expired |
-| code 190 | Token invalid or expired — generate a new System User token |
-| code 200 / HTTP 403 | Token is missing `ads_read` or `ads_management` |
-| code 17 / HTTP 429 | Rate limited — import a shorter window |
-
-### Import performance
-
-From `/ops/marketing` → **Meta Ads** → *Last 7 / 30 / 90 days*, or:
-
-```
-POST /api/commerce/marketing/meta/import
-Authorization: Bearer $CRON_SECRET
-{ "from": "2026-08-01", "to": "2026-08-15" }
-```
-
-Idempotent — rows are upserted on (product, channel, campaign, day), so
-re-importing a window corrects it rather than double-counting. The daily
-automation imports a rolling 3-day window automatically (Meta keeps revising
-recent days for up to 72 hours) and runs *before* the ROAS check so
-recommendations use fresh spend.
-
-⚠️ **Do not enter spend manually for a day you also import.** Manual and API
-rows are stored under different campaign references and will be summed.
-
-### Attribute campaigns to products
-
-Meta does not know our product ids. Two ways, in precedence order:
-
-1. **Launch the campaign from `/ops/marketing`** — the mapping is recorded
-   automatically.
-2. **Put `[vsp:<product-slug>]` in the campaign name** in Ads Manager, e.g.
-   `Halo Bedside Light — Aug 2026 [vsp:halo-bedside-light]`.
-3. Or map an existing campaign from the campaign table in `/ops/marketing`
-   (applies to future imports — re-import the period you want re-attributed).
-
-Unattributed spend still counts toward total ad spend and account-level net
-profit; it just cannot be charged to one product's P&L. Every import reports
-what it could not attribute, and the daily job raises a recommendation.
-
-### Launch a campaign
-
-`/ops/marketing` → **Launch a campaign**. Creates campaign → ad set → creative →
-ad, **all PAUSED**. This system never activates a campaign — review the creative
-in Ads Manager and turn it on there.
-
-Guards, none of which `server.py` had:
-- Refuses to advertise a product that is not published and sellable.
-- Resolves interest names to real Meta targeting IDs; unresolvable names are
-  dropped and reported rather than sent as names Meta ignores.
-- Fails loudly if any of the four objects cannot be created — it never reports
-  a half-built campaign as success.
-- The destination URL carries UTM parameters, so orders attribute back through
-  the storefront's own attribution cookie as well.
+1. **Research** (`/ops/research`) — score the candidate. Margin and shipping are
+   computed from your real numbers; the rest is your judgement.
+2. **Collect signals** — with `SERPAPI_KEY` set, pull the trend and competition
+   count. Without it, score demand by hand and note where the number came from.
+3. **Work the checklist** — each stage has its steps, and each step says why it
+   exists. The reasoning is the point; the tick is just the record.
+4. **Test** — set a kill budget and a deadline *before* spending. Enter spend and
+   sales daily while it runs.
+5. **Decide at the deadline** — continue, change one variable, or kill.
+6. **Write the post-mortem** — five minutes, tagged causes. This is what makes
+   the pattern table on `/ops/postmortems` work, and it is worth more than the
+   next product test.
 
 ---
 
-## 8. Schedule the automations
+## 6. Ad spend
+
+**By hand:** `/ops/marketing` → Record spend. These figures are exactly as real
+as imported ones.
+
+**Meta, automatically:** set `META_ACCESS_TOKEN`, `META_AD_ACCOUNT_ID` and
+`META_PAGE_ID`. Run the status check first — it round-trips the Graph API to
+prove the token, account, version and permissions before anything is trusted.
+
+Attribution to a product uses an explicit campaign map first, then a
+`[vsp:<product-slug>]` marker in the campaign name. Anything matching neither is
+imported with no product attached: it still counts toward total ad spend and
+whole-business profit, but not toward any product's ROAS. That is reported on
+every page that shows both, so the parts visibly do not sum to the whole.
+
+⚠️ The Meta client has never been run against a live ad account. Treat the first
+import as unverified until you have compared one day against Ads Manager.
+
+---
+
+## 7. Turn on the rest
 
 ```
-CRON_SECRET=$(openssl rand -hex 32)
+ANTHROPIC_API_KEY=...   # ad copy and the coach; falls back to a rules engine
+SERPAPI_KEY=...         # demand and competition data; no key means no data, never fake data
+CRON_SECRET=...         # lets a scheduler run the jobs
 ```
 
 Point any scheduler at:
 
 ```
-POST https://<your-domain>/api/commerce/automations/run?which=daily
-Authorization: Bearer <CRON_SECRET>
+POST /api/commerce/automations/run?set=daily
+Authorization: Bearer $CRON_SECRET
 ```
 
-Suggested cadence: `which=daily` every morning, `which=weekly` on Mondays.
+Weekly: `?set=weekly`. Or press the button in `/ops/automations`.
 
-**Vercel Cron** — add `vercel.json`:
-```json
-{ "crons": [{ "path": "/api/commerce/automations/run?which=daily", "schedule": "0 7 * * *" }] }
-```
-Vercel Cron does not send a custom Authorization header, so either sign in and
-use the "Run now" button in `/ops/automations`, or trigger it from GitHub Actions
-where you control the headers.
+Without a scheduler the jobs only run when you press the button — which means a
+gap in your ledger goes unnoticed until you happen to look.
 
 ---
 
-## 9. Add your first product
+## 8. Deploy
 
-**Path A — through the UI (recommended).**
+1. Push. Vercel builds from `main`.
+2. Set every variable that applies, `ADMIN_PASSCODE` first.
+3. Set `NEXT_PUBLIC_APP_URL` to the production origin.
 
-1. `/ops/research` → fill in the candidate, the economics and the fourteen
-   0–5 signals. The score updates live; margin and shipping are computed from
-   your numbers rather than judged.
-2. **Save candidate** → it lands in `researching`, unpublished. A high score
-   never publishes anything on its own.
-3. `/ops/products` → move it `researching → validation → approved`.
-4. **Generate copy** → writes a full content set (title, description, benefits,
-   FAQ, meta tags, ad angles, UGC and TikTok hooks, Meta ad concepts, email
-   angles, branded image prompts), saved unapproved and scanned for fabricated
-   claims.
-5. Add images. Put files under `public/store-media/` and insert rows:
-   ```sql
-   insert into ds_product_images (product_id, url, alt, position)
-   values ('<product-uuid>', '/store-media/your-image.jpg', 'Descriptive alt text', 0);
-   ```
-6. Map the variant to a supplier SKU (section 6).
-7. **Publish**. It appears at `/store/product/<slug>` immediately.
-
-**Path B — through the API.**
-
-```bash
-curl -X POST https://<domain>/api/commerce/products \
-  -H 'Content-Type: application/json' \
-  --cookie "<your session cookie>" \
-  -d '{"name":"Halo Bedside Light","priceCents":4900,"costCents":1180,
-       "shippingCostCents":420,"category":"light","shipDaysMin":6,"shipDaysMax":11,
-       "research":{"searchDemand":4,"socialInterest":4,"marketSize":4,"competition":3,
-                   "saturation":3,"problemSeverity":4,"differentiation":4,"impulseBuy":4,
-                   "creativePotential":4,"brandability":4,"repeatPurchase":2,
-                   "refundRisk":4,"qualityRisk":4,"regulatoryRisk":5}}'
-```
+The build does not need the database to be reachable — nothing is prerendered
+from it. A database outage produces a clear message, not a failed deploy.
 
 ---
 
-## 10. Rebrand the store
+## 9. Checklist before you trust it
 
-Everything brand-related lives in **`lib/commerce/brand.ts`**: name, legal
-entity, tagline, positioning, voice rules, claim prohibitions, categories, trust
-statements, contact details, shipping and returns policy. Change that one file
-and the storefront, the policy pages, the emails and the AI copy prompts all
-follow.
-
-Colours and type are in `tailwind.config.ts` (`ink` / `sand` / `clay` / `moss`)
-and `app/globals.css` (`.commerce-scope`).
+- [ ] `ADMIN_PASSCODE` set, and you can unlock
+- [ ] Supabase connected; `DEMO DATA` banner gone
+- [ ] Both migrations run
+- [ ] One real day entered, and the P&L matches what you expected
+- [ ] `CRON_SECRET` set and the daily job firing
+- [ ] `/ops/system` shows no blocking readiness items
 
 ---
 
-## 11. Deploy
+## 10. Troubleshooting
 
-Vercel:
-
-1. Import the repo. Framework preset: Next.js. No build-command changes needed.
-2. Set every variable from `.env.example` that applies.
-3. Set `NEXT_PUBLIC_APP_URL` to the production origin — canonical URLs, Open
-   Graph tags, the sitemap and Stripe redirect URLs all derive from it.
-4. Deploy, then register the commerce Stripe webhook against the live URL.
-
-The storefront is served at the site root: middleware rewrites `/` to `/store`,
-so the home page keeps the bare root URL. `/store` also works directly.
-
----
-
-## 12. Shopify
-
-This build does **not** use Shopify — the storefront, cart, checkout and admin
-are all in this repository, so there is no Shopify subscription and no theme
-layer.
-
-If you want Shopify anyway, the pieces are already here:
-
-- `server.py` (the Python MCP server) contains a working Shopify Admin REST
-  product-create path. Set `SHOPIFY_STORE` and `SHOPIFY_ADMIN_TOKEN` and it
-  publishes products with AI-written copy.
-- To push this catalogue into Shopify instead, write a `ShopifyAdapter` against
-  `lib/commerce/suppliers/types.ts`-style boundaries and mirror `ds_products`
-  into Shopify products. Nothing in the storefront depends on the admin, so the
-  two can run side by side during a migration.
-
-Decide one way or the other before launch — running both storefronts against one
-inventory without a sync job will oversell.
+| Symptom | Cause |
+| --- | --- |
+| Everything redirects to `/unlock` | `ADMIN_PASSCODE` not set, or the cookie was cleared |
+| `/unlock` says nothing can unlock it | `ADMIN_PASSCODE` genuinely unset on the server |
+| `DEMO DATA` banner will not go away | Supabase env vars missing or wrong; nothing is being saved |
+| Profit reads zero with sales entered | Check the date — the window is calendar-based |
+| ROAS shows `—` | No ad spend recorded in that window. A dash means no denominator, not zero |
+| Per-product figures do not sum to the total | Unattributed ad spend. The page says how much |
+| Signals endpoint returns 503 | `SERPAPI_KEY` unset. It refuses to invent a trend |
 
 ---
 
-## 13. Launch checklist
-
-- [ ] Supabase connected; `DEMO DATA` banner gone from `/ops`
-- [ ] `COMMERCE_ADMIN_EMAILS` set and you can reach `/ops`
-- [ ] Stripe live keys + commerce webhook registered and verified
-- [ ] `RESEND_API_KEY` set; place a test order and confirm the email arrives
-- [ ] A real supplier connected and one live test order fulfilled end to end
-- [ ] Policy pages rewritten with your real entity, address and jurisdiction
-      (`lib/commerce/brand.ts` + `app/store/pages/[slug]/page.tsx`)
-- [ ] At least one product published with real photography and real copy
-- [ ] `NEXT_PUBLIC_APP_URL` set to the production origin
-- [ ] `/robots.txt` and `/store-sitemap.xml` return the production domain
-- [ ] `CRON_SECRET` set and the daily automation firing
-- [ ] `/ops/system` shows no remaining blocking readiness items
-
----
-
-## 14. Troubleshooting
-
-| Symptom | Cause | Fix |
-| --- | --- | --- |
-| `/ops` says "Not authorised" | `COMMERCE_ADMIN_EMAILS` empty, or your email is not on it | Set it and sign in with that account |
-| `DEMO DATA` banner will not go away | Supabase env vars missing or wrong | Check `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` |
-| Checkout returns 503 | `STRIPE_SECRET_KEY` not set | Set it; the response body names the missing variables |
-| Paid orders never appear | Commerce webhook not registered, or wrong secret | Check `STRIPE_COMMERCE_WEBHOOK_SECRET` and the Stripe dashboard's delivery log |
-| Orders stuck in `needs_attention` | Supplier rejected them | `/ops/orders` shows the exact reason; fix and press Retry (idempotent) |
-| Customers get no email | Console transport is active | Set `RESEND_API_KEY` and `COMMERCE_FROM_EMAIL` |
-| ROAS and CPA show `—` | No ad spend recorded | Enter spend in `/ops/marketing`, or import from Meta. A dash means "not computable", never zero |
-| Meta import returns 502 | Meta rejected the request | The response carries Meta's message and a hint. Start with the status endpoint |
-| Meta spend appears but not against a product | Campaign is unattributed | Add `[vsp:<slug>]` to the campaign name or map it in `/ops/marketing`, then re-import |
-| ROAS looks impossibly good after an import | Manual spend for the same day was also entered | Manual and API rows are summed — remove one |
-| AI copy is badged `FALLBACK` | `ANTHROPIC_API_KEY` not set | Set it, then regenerate |
-| Product will not publish | Status is not sellable | Move it to `approved`, `testing`, `winner` or `scaling` first |
-
----
-
-## 15. Where things live
+## 11. Where things live
 
 ```
-app/store/…                    storefront pages
-app/ops/…                      admin dashboard
+app/ops/…                      the screens
 app/api/commerce/…             HTTP API
-app/robots.txt/                generated robots.txt
-app/store-sitemap.xml/         generated sitemap
+app/unlock/                    the one public page
 
 lib/commerce/
-  brand.ts                     brand + policy single source of truth
+  auth.ts                      passcode gate, session token, cron secret
   config.ts                    which integrations are actually configured
-  money.ts                     integer-cent money helpers
-  cart.ts                      server-side cart pricing
+  money.ts                     integer-cent helpers
   validate.ts                  request validation
-  auth.ts                      admin allowlist + cron secret
   http.ts                      route helpers, error translation, rate limiting
-  seo.ts                       metadata + JSON-LD
   db/                          driver interface, Supabase driver, demo driver, repositories
+  analytics/profit.ts          the books
   research/scoring.ts          the 100-point rubric + lifecycle machine
-  suppliers/                   adapter interface, mock, CJ, generic HTTP, registry
-  orders/                      order creation + fulfilment pipeline
-  analytics/                   profit engine + attribution
-  ai/                          Anthropic client, content pipeline, analyst, guardrails
+  research/checklist.ts        the 23 stage steps, each with its reason
+  research/factors.ts          the fixed cause vocabulary
+  research/signals.ts          SerpAPI collection
+  suppliers/                   cost lookup adapters
+  marketing/                   ad channel interface, Meta client, metric import
+  ai/                          Anthropic client, content, guardrails, coach
   automation/jobs.ts           daily + weekly jobs
-  email/                       transports + 9 templates
-  marketing/channels.ts        ad channel interface + registry
-  marketing/adapter-meta.ts    Meta Ads client (insights + campaign creation)
-  marketing/import.ts          ad-metric import + campaign→product attribution
   system.ts                    the inventory behind /ops/system
 
-components/store/…             storefront UI
-components/ops/…               admin UI
+components/ops/…               UI
 tests/…                        node --test suite
+supabase/migrations/           011 core, 012 research + books
 ```

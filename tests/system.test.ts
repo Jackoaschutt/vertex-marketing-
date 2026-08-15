@@ -3,6 +3,7 @@ import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
 import { MODULES, ROUTES, TABLE_PURPOSE, VERIFICATION } from '../lib/commerce/system'
+import { classify } from '../lib/commerce/db/health'
 
 // The /ops/system page claims a specific set of files exists and says what each
 // one does. Those claims are only worth anything if a rename or deletion breaks
@@ -95,4 +96,38 @@ test('every table listed on the page has a purpose', () => {
     assert.ok(t.table.startsWith('ds_'), `${t.table} is outside the commerce namespace`)
     assert.ok(t.purpose.trim().length > 10, `${t.table} needs a description`)
   }
+})
+
+// --- Database health messages ----------------------------------------------
+// These strings are what stands between the owner and a screenshot of
+// "Application error … Digest: 222848690", so each shape must be recognised.
+
+test('a dead host is named as unreachable, not as a key problem', () => {
+  const r = classify('select ds_sales: TypeError: fetch failed')
+  assert.equal(r.status, 'unreachable')
+  assert.match(r.fix, /paused/i)
+})
+
+test('a rejected credential is named as a key problem, not a dead host', () => {
+  const r = classify('select ds_events: Invalid API key')
+  assert.equal(r.status, 'bad_key')
+  assert.match(r.fix, /service_role/)
+})
+
+test('a missing table points at the migrations', () => {
+  const r = classify('relation "ds_sales" does not exist')
+  assert.equal(r.status, 'missing_schema')
+  assert.match(r.fix, /011_commerce_core|012_research_and_books/)
+})
+
+test('an unrecognised error still returns something actionable', () => {
+  const r = classify('something nobody predicted')
+  assert.equal(r.status, 'unknown')
+  assert.ok(r.title.length > 0 && r.fix.length > 0)
+})
+
+test('the two failure modes are never confused for each other', () => {
+  // These were the two real errors seen in production within 30 seconds of each
+  // other, and telling them apart is what points at the right fix.
+  assert.notEqual(classify('fetch failed').status, classify('Invalid API key').status)
 })

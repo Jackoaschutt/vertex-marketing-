@@ -3,7 +3,10 @@ import { listProducts } from '@/lib/commerce/db/repo'
 import { isSellable } from '@/lib/commerce/research/scoring'
 
 export const runtime = 'nodejs'
-export const revalidate = 3600
+// Generated per request. Prerendering it made `next build` depend on the
+// database being reachable, which is the wrong coupling for a file whose whole
+// purpose is to reflect the live catalogue.
+export const dynamic = 'force-dynamic'
 
 /**
  * GET /store-sitemap.xml — generated from live catalogue data.

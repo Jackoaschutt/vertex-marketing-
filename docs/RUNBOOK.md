@@ -380,9 +380,10 @@ Vercel:
    Graph tags, the sitemap and Stripe redirect URLs all derive from it.
 4. Deploy, then register the commerce Stripe webhook against the live URL.
 
-To serve the storefront at the site root instead of `/store`, set
-`COMMERCE_ROOT=true`. Middleware then rewrites `/` to `/store`. Nothing is
-deleted; unset it to restore PropGuard's landing page.
+The storefront is served at the site root: middleware rewrites `/` to `/store`.
+PropGuard's landing page and its `/dashboard` routes are still in the
+repository and still reachable at their own paths — setting `PROPGUARD_ROOT=true`
+hands `/` back to PropGuard, and the store stays at `/store` either way.
 
 ---
 

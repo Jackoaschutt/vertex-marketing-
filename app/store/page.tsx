@@ -6,12 +6,27 @@ import { listImagesForProducts, listProducts } from '@/lib/commerce/db/repo'
 import { isSellable } from '@/lib/commerce/research/scoring'
 import { ProductCard } from '@/components/store/ProductCard'
 
-export const revalidate = 300
+// Rendered per request rather than prerendered. The catalogue lives in the
+// database, so a build-time snapshot would ship stale prices and stock — and
+// would couple `next build` to the database being reachable, which failed a
+// deploy once already.
+export const dynamic = 'force-dynamic'
 
 export default async function StoreHome() {
-  const all = await listProducts({ published: true, sort: 'position' })
+  let all: Awaited<ReturnType<typeof listProducts>> = []
+  let images: Awaited<ReturnType<typeof listImagesForProducts>> = []
+  let catalogueError = false
+
+  // A database outage must not return a 500 for the whole shop front. Say the
+  // catalogue is unavailable; never quietly imply the store has no products.
+  try {
+    all = await listProducts({ published: true, sort: 'position' })
+    images = await listImagesForProducts(all.map((p) => p.id))
+  } catch {
+    catalogueError = true
+  }
+
   const products = all.filter((p) => isSellable(p.status))
-  const images = await listImagesForProducts(products.map((p) => p.id))
   const imageFor = (id: string) => images.find((i) => i.product_id === id)
 
   const featured = products.filter((p) => p.featured).slice(0, 2)
@@ -20,6 +35,15 @@ export default async function StoreHome() {
 
   return (
     <>
+      {catalogueError && (
+        <div className="border-b border-clay-500/40 bg-clay-400/10">
+          <p className="mx-auto max-w-6xl px-4 py-3 text-sm text-clay-600 sm:px-6">
+            The catalogue is temporarily unavailable, so products are not shown. This is a
+            connection problem on our side, not an empty shop.
+          </p>
+        </div>
+      )}
+
       {/* Hero ------------------------------------------------------------ */}
       <section className="border-b border-ink-200">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 md:py-24">

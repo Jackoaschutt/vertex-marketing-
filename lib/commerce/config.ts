@@ -61,7 +61,7 @@ export const config = {
       .filter(Boolean)
   },
   get storeAtRoot(): boolean {
-    return process.env.COMMERCE_ROOT === 'true'
+    return process.env.PROPGUARD_ROOT !== 'true'
   },
   get currency(): string {
     return process.env.COMMERCE_CURRENCY ?? 'USD'

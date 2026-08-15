@@ -40,7 +40,7 @@ Development rule #1 is *"do not destroy working functionality"*. PropGuard is wo
 | UI | `components/store/*`, `components/ops/*` |
 | Database | `ds_*` tables, migration `011_commerce_core.sql` |
 
-**Promoting the store to the site root is one environment variable.** Set `COMMERCE_ROOT=true` and `middleware.ts` rewrites `/` → `/store`. Nothing is deleted; flipping it back restores PropGuard's landing page.
+**The store is the site's front door.** `middleware.ts` rewrites `/` → `/store`. Nothing of PropGuard is deleted — `app/page.tsx` and every `/dashboard` route are untouched and still reachable — and setting `PROPGUARD_ROOT=true` hands `/` back to PropGuard. The switch is one environment variable in either direction.
 
 ---
 

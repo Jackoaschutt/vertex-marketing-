@@ -35,9 +35,11 @@ function isCommercePublic(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  // Optional: serve the storefront at the site root. Off by default so
-  // PropGuard's landing page is untouched; flip COMMERCE_ROOT=true to switch.
-  if (process.env.COMMERCE_ROOT === 'true' && pathname === '/') {
+  // The storefront is the site's front door. Nothing of PropGuard is deleted —
+  // app/page.tsx and every /dashboard route are untouched, and setting
+  // PROPGUARD_ROOT=true restores PropGuard's landing page at / — but commerce
+  // is the default now.
+  if (process.env.PROPGUARD_ROOT !== 'true' && pathname === '/') {
     const url = request.nextUrl.clone()
     url.pathname = '/store'
     return NextResponse.rewrite(url)

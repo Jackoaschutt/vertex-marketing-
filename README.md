@@ -3,8 +3,21 @@
 A personal tool for tracking the money and learning the process.
 
 **Money** — what you spent and earned, by month, by category.
+**Ads** — campaigns judged on profit rather than ROAS, because Ads Manager does not know what your goods cost.
+**Suppliers** — compared on landed cost, with the questions worth answering before you commit.
 **Learn** — the process as a checklist, each step carrying the reason it exists, plus your own notes.
 **Coach** — answers worked out from your own entries.
+
+## What it cannot do, and why
+
+It cannot search Google or call the Meta API. A browser page has nowhere to hide
+an API key — anything in the page is readable by anyone who opens developer
+tools — and browsers block pages from calling most other sites' APIs anyway.
+
+What it does instead is build the searches for you: type a product in Ads or
+Suppliers and it opens the Meta Ad Library, AliExpress, Alibaba, CJ, Amazon,
+Google Shopping and Google Trends with the right query already filled in, each
+one saying what you are looking for when you get there.
 
 ## It runs on nothing
 

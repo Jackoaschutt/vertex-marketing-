@@ -40,10 +40,61 @@ export interface Note {
   createdAt: string
 }
 
+export type CampaignStatus = 'testing' | 'scaling' | 'paused' | 'killed'
+
+/**
+ * A campaign you are running somewhere else.
+ *
+ * These figures are typed in from Ads Manager. Nothing here talks to Meta —
+ * that would need a server holding an access token, and this app has no server.
+ * What it does instead is the part Ads Manager will not do for you: work out
+ * whether a campaign is actually profitable once the cost of the goods is
+ * counted, and tell you when it is time to stop.
+ */
+export interface Campaign {
+  id: string
+  name: string
+  platform: 'meta' | 'tiktok' | 'google' | 'other'
+  product: string
+  status: CampaignStatus
+  spendCents: number
+  revenueCents: number
+  purchases: number
+  /** Unit cost + shipping for one order, so profit is real rather than revenue. */
+  unitCostCents: number
+  startedAt: string
+  note?: string
+}
+
+export interface SupplierCheck {
+  key: string
+  done: boolean
+}
+
+/** A supplier you are considering. Compared on landed cost, not sticker price. */
+export interface Supplier {
+  id: string
+  name: string
+  product: string
+  source: string
+  unitCostCents: number
+  shippingCostCents: number
+  leadDaysMin: number
+  leadDaysMax: number
+  moq: number
+  url?: string
+  notes?: string
+  /** Vetting questions actually answered, keyed by check id. */
+  checks: Record<string, boolean>
+  createdAt: string
+}
+
 export interface Data {
   version: 1
   entries: Entry[]
   notes: Note[]
+  campaigns: Campaign[]
+  suppliers: Supplier[]
   /** "stage:itemKey" → done */
   checklist: Record<string, boolean>
   lastExportAt: string | null
@@ -53,6 +104,8 @@ export const EMPTY: Data = {
   version: 1,
   entries: [],
   notes: [],
+  campaigns: [],
+  suppliers: [],
   checklist: {},
   lastExportAt: null,
 }
@@ -80,6 +133,8 @@ function read(): Data {
       // Shape check rather than trust: a half-written blob should fall through
       // to the backup instead of rendering a broken page.
       if (parsed && parsed.version === 1 && Array.isArray(parsed.entries)) {
+        // Spread over EMPTY so a backup taken before campaigns and suppliers
+        // existed still opens, with those simply empty.
         return { ...EMPTY, ...parsed }
       }
     } catch {
@@ -158,6 +213,49 @@ export function useStore() {
     [update]
   )
 
+  const addCampaign = useCallback(
+    (c: Omit<Campaign, 'id'>) =>
+      update((d) => ({ ...d, campaigns: [{ ...c, id: newId() }, ...d.campaigns] })),
+    [update]
+  )
+
+  const updateCampaign = useCallback(
+    (id: string, patch: Partial<Campaign>) =>
+      update((d) => ({
+        ...d,
+        campaigns: d.campaigns.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+      })),
+    [update]
+  )
+
+  const removeCampaign = useCallback(
+    (id: string) => update((d) => ({ ...d, campaigns: d.campaigns.filter((c) => c.id !== id) })),
+    [update]
+  )
+
+  const addSupplier = useCallback(
+    (s: Omit<Supplier, 'id' | 'createdAt'>) =>
+      update((d) => ({
+        ...d,
+        suppliers: [{ ...s, id: newId(), createdAt: new Date().toISOString() }, ...d.suppliers],
+      })),
+    [update]
+  )
+
+  const updateSupplier = useCallback(
+    (id: string, patch: Partial<Supplier>) =>
+      update((d) => ({
+        ...d,
+        suppliers: d.suppliers.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+      })),
+    [update]
+  )
+
+  const removeSupplier = useCallback(
+    (id: string) => update((d) => ({ ...d, suppliers: d.suppliers.filter((s) => s.id !== id) })),
+    [update]
+  )
+
   const toggleCheck = useCallback(
     (key: string) =>
       update((d) => ({ ...d, checklist: { ...d.checklist, [key]: !d.checklist[key] } })),
@@ -201,6 +299,12 @@ export function useStore() {
     removeEntry,
     addNote,
     removeNote,
+    addCampaign,
+    updateCampaign,
+    removeCampaign,
+    addSupplier,
+    updateSupplier,
+    removeSupplier,
     toggleCheck,
     exportData,
     importData,

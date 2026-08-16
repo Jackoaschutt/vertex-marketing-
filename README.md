@@ -1,66 +1,37 @@
-# Ecom cockpit
+# Ledger
 
-A private tool for one person running an ecommerce business: find products worth
-testing, keep the books for whatever you sell elsewhere, and build the judgement
-to do it better next time.
+A personal tool for tracking the money and learning the process.
 
-It is **not** a shop. There is no storefront, no checkout, and no public page —
-every path requires a passcode.
+**Money** — what you spent and earned, by month, by category.
+**Learn** — the process as a checklist, each step carrying the reason it exists, plus your own notes.
+**Coach** — answers worked out from your own entries.
 
-| Surface | What it is |
-| --- | --- |
-| **Books** (`/ops/books`) | The ledger. Enter a day of sales; every financial figure in the tool is computed from it. |
-| **Research** (`/ops/research`) | The 100-point rubric, with demand and competition collected from real data when SerpAPI is connected. |
-| **Products** (`/ops/products`) | Every candidate, its score, its stage progress, and what it actually earned. |
-| **Playbook** (`/ops/playbook`) | What you have worked out, in your own words. |
-| **Post-mortems** (`/ops/postmortems`) | Why each finished product won or died, plus the pattern across all of them. |
-| **Analytics** (`/ops/analytics`) | Per-product contribution, revenue by channel, where the overheads went. |
-| **Marketing** (`/ops/marketing`) | Ad spend, Meta import, blended and per-product return. |
-| **System** (`/ops/system`) | Everything that exists and whether it is real, mocked or unverified. |
+## It runs on nothing
 
-## The three things it refuses to do
-
-1. **Report revenue as profit.** They are separate fields the whole way through.
-2. **Invent a number.** A rate with no denominator is `—`, not zero. A missing
-   trend is an error, not a plausible-looking line.
-3. **Store a total twice.** Every figure is computed from the ledger at request
-   time, so correcting one day corrects the entire history immediately.
-
-## Quick start
+No database, no accounts, no API keys, no environment variables. Everything is
+saved in your browser on your device, and nothing is ever uploaded. Open it and
+it works.
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000 → /unlock
+npm run dev
 ```
 
-With no environment configured, it runs on seeded in-memory data so the whole
-tool can be explored. `/ops` shows a permanent `DEMO DATA` banner whenever that
-is the case, so it can never be mistaken for your real books.
+Three dependencies: Next, React, React DOM.
 
-```bash
-npm run typecheck  # tsc --noEmit
-npm test           # node --test, 84 tests, no extra dependencies
-npm run build      # production build
-```
+## The trade
 
-## The only credential
+Browser storage is why there is no setup, and it is also the risk: clearing
+your browsing data erases your records, and your phone and laptop hold separate
+copies.
 
-```
-ADMIN_PASSCODE=something-long-you-will-remember
-```
+The home page has **Export backup** and **Restore** for exactly that reason.
+Take a backup occasionally — the app will nag you once there is enough in here
+to be worth losing.
 
-One passcode, hashed into a session cookie. An unset passcode denies everyone —
-the failure mode of a misconfigured deployment must never be an open door onto
-your financials.
+## The one rule
 
-## Documentation
-
-- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — how it is built and why
-- **[docs/ROADMAP.md](docs/ROADMAP.md)** — what is done, partial and outstanding
-- **[docs/RUNBOOK.md](docs/RUNBOOK.md)** — run it, deploy it, use it daily
-
-`server.py` is a separate Python MCP server for interactive product discovery
-(Google Trends → ideas → Shopify → Meta). Optional, deploys separately.
-
-Copy `.env.example` to `.env.local` — every variable is documented there,
-including what breaks without it.
+Nothing is invented. The coach answers only from what you entered and says when
+there isn't enough to answer, rates show `—` rather than a misleading `0%`, and
+income is never labelled profit. A made-up number about your own money is worse
+than no number, because you might act on it.
